@@ -11,18 +11,36 @@ import {
   findForbiddenKeys,
   type AvailabilityMode,
   type DeclineReason,
+  type NormalisedEvent,
+  type RawLocationReport,
+  TUTORIAL_MODULES,
+  QUIZ_QUESTIONS,
+  gradeQuiz,
 } from '@safecircle/shared';
+import { pool } from '../db/pool.js';
 import { servableCards, findCard } from '../db/repositories/cards.js';
-import { findIncident } from '../db/repositories/incidents.js';
+import {
+  findIncident,
+  findActiveIncidentForVolunteer,
+  appendEvent,
+  insertDispatch,
+} from '../db/repositories/incidents.js';
 import { findIncidentHistory, findPerson } from '../db/repositories/people.js';
 import {
   badgeFor,
   completeTutorial,
+  ensurePersonForVolunteer,
   findVolunteer,
+  getTutorialProgress,
+  saveModuleProgress,
+  createVoteRound,
+  findOpenVoteRoundsForVoter,
+  castRoundVote,
   primarySkillLabel,
   setAvailability,
   updateZone,
 } from '../db/repositories/volunteers.js';
+import { ingest, runDispatchPhase } from '../domain/engine.js';
 import {
   alertsFor,
   briefing,
@@ -108,12 +126,13 @@ export async function volunteerRoutes(app: FastifyInstance): Promise<void> {
     });
   });
 
-  /** Open alerts for me - pre-accept view only (FR-VOL-1). */
+  /** Open alerts for me - pre-accept view only (FR-VOL-1), plus active accepted incident. */
   app.get('/api/volunteer/alerts', async (req, reply) => {
     const session = await requireSession(req, reply, ['volunteer', 'guard']);
     if (!session) return;
 
     const alerts = await alertsFor(session.subjectId);
+    const activeIncidentId = await findActiveIncidentForVolunteer(session.subjectId);
 
     // Defence in depth: assert the payload really is free of identifying keys.
     const leaked = findForbiddenKeys(alerts);
@@ -123,7 +142,7 @@ export async function volunteerRoutes(app: FastifyInstance): Promise<void> {
         error: { code: 'disclosure_guard_tripped', message: 'Refused to send this payload.' },
       });
     }
-    return reply.send({ alerts });
+    return reply.send({ alerts, activeIncidentId });
   });
 
   app.get('/api/volunteer/me', async (req, reply) => {
@@ -154,6 +173,131 @@ export async function volunteerRoutes(app: FastifyInstance): Promise<void> {
     if (!session) return;
     await completeTutorial(session.subjectId);
     return reply.send({ ok: true, tutorialComplete: true });
+  });
+
+  /** F28: Tutorial modules status and progress. */
+  app.get('/api/volunteer/tutorial/status', async (req, reply) => {
+    const session = await requireSession(req, reply, ['volunteer', 'guard']);
+    if (!session) return;
+
+    const progress = await getTutorialProgress(session.subjectId);
+    return reply.send({
+      modules: TUTORIAL_MODULES,
+      quizQuestions: QUIZ_QUESTIONS.map((q) => ({
+        id: q.id,
+        question: q.question,
+        options: q.options,
+      })),
+      progress,
+    });
+  });
+
+  /** F28: Complete an individual tutorial module or submit quiz. */
+  app.post<{
+    Params: { moduleId: string };
+    Body: { answers?: Record<string, number> };
+  }>('/api/volunteer/tutorial/module/:moduleId', async (req, reply) => {
+    const session = await requireSession(req, reply, ['volunteer', 'guard']);
+    if (!session) return;
+
+    const { moduleId } = req.params;
+    if (moduleId === 'm5_quiz') {
+      const answers = req.body?.answers ?? {};
+      const graded = gradeQuiz(answers);
+      if (!graded.passed) {
+        return reply.code(400).send({
+          ok: false,
+          score: graded.score,
+          correctCount: graded.correctCount,
+          total: graded.total,
+          passed: false,
+          message: `Quiz score was ${graded.score}%. An 80% passing grade is required to qualify.`,
+        });
+      }
+      const progress = await saveModuleProgress(session.subjectId, moduleId, graded.score);
+      return reply.send({
+        ok: true,
+        score: graded.score,
+        passed: true,
+        allDone: progress.allDone,
+      });
+    }
+
+    const progress = await saveModuleProgress(session.subjectId, moduleId, 100);
+    return reply.send({ ok: true, allDone: progress.allDone });
+  });
+
+  /** F28: Trigger a practice alert drill for this volunteer. */
+  app.post('/api/volunteer/tutorial/practice-alert', async (req, reply) => {
+    const session = await requireSession(req, reply, ['volunteer', 'guard']);
+    if (!session) return;
+
+    const volunteer = await findVolunteer(session.subjectId);
+    if (!volunteer) return reply.code(404).send({ error: { code: 'not_found' } });
+
+    const personId = await ensurePersonForVolunteer(volunteer);
+    const incidentId = `drill-${session.subjectId.slice(0, 8)}-${Date.now()}`;
+    const at = new Date();
+
+    await pool.query(
+      `INSERT INTO incidents (id, person_id, society_id, source, severity, case_type, state, flags, opened_at)
+       VALUES ($1, $2, $3, 'volunteer_practice', 'P2', 'fall', 'dispatching', $4, $5)`,
+      [
+        incidentId,
+        personId,
+        volunteer.societyId,
+        JSON.stringify({ drill: true, practice: true, practiceVolunteerId: session.subjectId }),
+        at,
+      ],
+    );
+
+    // Tier 1 direct dispatch
+    await insertDispatch(incidentId, session.subjectId, 1, 100, { practice: true });
+
+    return reply.send({ ok: true, incidentId });
+  });
+
+  /** F26: Get open community voting rounds for this volunteer. */
+  app.get('/api/volunteer/voting/rounds', async (req, reply) => {
+    const session = await requireSession(req, reply, ['volunteer', 'guard']);
+    if (!session) return;
+
+    const rounds = await findOpenVoteRoundsForVoter(session.subjectId);
+    return reply.send({ rounds });
+  });
+
+  /** F26: Cast a vouch or concern on a candidate volunteer. */
+  app.post<{
+    Params: { roundId: string };
+    Body: { choice: 'vouch' | 'concern' | 'abstain'; reason?: string };
+  }>('/api/volunteer/voting/rounds/:roundId/vote', async (req, reply) => {
+    const session = await requireSession(req, reply, ['volunteer', 'guard']);
+    if (!session) return;
+
+    const choice = req.body?.choice;
+    if (!choice || !['vouch', 'concern', 'abstain'].includes(choice)) {
+      return reply.code(400).send({ error: { code: 'invalid_choice', message: 'Choice must be vouch, concern, or abstain.' } });
+    }
+
+    try {
+      const result = await castRoundVote(req.params.roundId, session.subjectId, choice);
+      return reply.send({ ok: true, status: result.status, reason: result.outcomeReason });
+    } catch (err) {
+      return reply.code(400).send({ error: { code: 'vote_failed', message: (err as Error).message } });
+    }
+  });
+
+  /** F26: Request community verification (opens a vote round). */
+  app.post('/api/volunteer/voting/request', async (req, reply) => {
+    const session = await requireSession(req, reply, ['volunteer', 'guard']);
+    if (!session) return;
+
+    const volunteer = await findVolunteer(session.subjectId);
+    if (!volunteer) return reply.code(404).send({ error: { code: 'not_found' } });
+
+    const societyId = volunteer.societyId ?? 'soc_shanti_niketan';
+    const roundId = await createVoteRound(session.subjectId, societyId, 7);
+    return reply.send({ ok: true, roundId });
   });
 
   /** Accept or decline (FR-ALT-4). A decline must carry a reason. */
@@ -239,10 +383,16 @@ export async function volunteerRoutes(app: FastifyInstance): Promise<void> {
     const person = await findPerson(incident.personId);
     if (!person) return reply.code(404).send({ error: { code: 'not_found', message: 'Not found.' } });
 
+    const contextText =
+      (incident.flags?.checkInAnswer as string | undefined) ||
+      (incident.flags?.caregiverReport as string | undefined) ||
+      null;
+
     const set = buildFlashcardSet(await servableCards(), {
       person,
       caseType: incident.caseType,
       history: await findIncidentHistory(person.id),
+      contextText,
       localHour: new Date().getHours(),
     });
 
@@ -302,7 +452,68 @@ export async function volunteerRoutes(app: FastifyInstance): Promise<void> {
           .code(403)
           .send({ error: { code: result.reason!, message: messageFor(result.reason!) } });
       }
+
+      if (req.body.status === 'resolved') {
+        const inc = await findIncident(req.params.id);
+        if (inc?.flags.practice) {
+          await saveModuleProgress(session.subjectId, 'm6_drill', 100);
+        }
+      }
       return reply.send(result);
+    },
+  );
+
+  /**
+   * F23: "I'm in danger" — volunteer's own SOS on scene or during duty.
+   * Forces P1 severity, notifies guard and 112, links to active incident if any.
+   */
+  app.post<{ Body: { incidentId?: string; lat?: number; lng?: number } }>(
+    '/api/volunteer/danger',
+    async (req, reply) => {
+      const session = await requireSession(req, reply, ['volunteer', 'guard']);
+      if (!session) return;
+
+      const volunteer = await findVolunteer(session.subjectId);
+      if (!volunteer) {
+        return reply.code(404).send({ error: { code: 'not_found', message: 'Volunteer not found.' } });
+      }
+
+      const personId = await ensurePersonForVolunteer(volunteer);
+      const at = new Date();
+      const location: RawLocationReport | undefined =
+        req.body?.lat && req.body?.lng
+          ? { gps: { lat: req.body.lat, lng: req.body.lng, acc_m: 10, age_s: 0 } }
+          : undefined;
+
+      const event: NormalisedEvent = {
+        source: 'volunteer_app',
+        sender: personId,
+        type: 'panic',
+        at,
+        location,
+        text: `Volunteer ${volunteer.name} reported danger on scene.`,
+      };
+
+      const outcome = await ingest(event);
+
+      const activeIncId = req.body?.incidentId ?? (await findActiveIncidentForVolunteer(session.subjectId));
+      if (activeIncId) {
+        await appendEvent(activeIncId, 'volunteer_in_danger', 'volunteer', session.subjectId, {
+          volunteerId: session.subjectId,
+          volunteerName: volunteer.name,
+          dangerIncidentId: outcome.incident.id,
+        });
+      }
+
+      if (!outcome.merged) {
+        void runDispatchPhase(outcome.incident, outcome.person, event);
+      }
+
+      return reply.code(201).send({
+        ok: true,
+        incidentId: outcome.incident.id,
+        severity: outcome.severity,
+      });
     },
   );
 }

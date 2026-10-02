@@ -164,6 +164,18 @@ export function Simulator(): ReactNode {
     [device, place, online, say],
   );
 
+  const resetDevice = useCallback(async (): Promise<void> => {
+    try {
+      await fetch(`/api/device/${device.id}/reset-status`, { method: 'POST' });
+      setStage('idle');
+      setPattern(null);
+      setIncidentId(null);
+      say(`← reset: device ${device.id} reset to idle (basic state)`);
+    } catch (err) {
+      say(`← reset failed: ${(err as Error).message}`, 'warn');
+    }
+  }, [device.id, say]);
+
   /** Press timing, exactly as the firmware measures it (section 18.7). */
   const startHold = (): void => {
     holdStartRef.current = Date.now();
@@ -336,27 +348,30 @@ export function Simulator(): ReactNode {
           </div>
         </div>
 
-        <div style={{ marginTop: '1.2rem' }}>
-          <button
-            className="press-btn"
-            onPointerDown={startHold}
-            onPointerUp={endHold}
-            onPointerLeave={() => holding && endHold()}
-            onKeyDown={(e) => {
-              if ((e.key === ' ' || e.key === 'Enter') && !holding) {
-                e.preventDefault();
-                startHold();
-              }
-            }}
-            onKeyUp={(e) => {
-              if ((e.key === ' ' || e.key === 'Enter') && holding) {
-                e.preventDefault();
-                endHold();
-              }
-            }}
-          >
-            {holding ? nextAction : 'HOLD'}
-          </button>
+        <div style={{ marginTop: '1.4rem' }}>
+          <div className="press-btn-wrap">
+            <div className="press-btn-ring" aria-hidden="true" />
+            <button
+              className="press-btn"
+              onPointerDown={startHold}
+              onPointerUp={endHold}
+              onPointerLeave={() => holding && endHold()}
+              onKeyDown={(e) => {
+                if ((e.key === ' ' || e.key === 'Enter') && !holding) {
+                  e.preventDefault();
+                  startHold();
+                }
+              }}
+              onKeyUp={(e) => {
+                if ((e.key === ' ' || e.key === 'Enter') && holding) {
+                  e.preventDefault();
+                  endHold();
+                }
+              }}
+            >
+              {holding ? nextAction : 'HOLD'}
+            </button>
+          </div>
           {holding && (
             <>
               <div className="progress" style={{ marginTop: '0.8rem' }}>
@@ -374,7 +389,7 @@ export function Simulator(): ReactNode {
           )}
         </div>
 
-        <div className="btnrow" style={{ justifyContent: 'center', marginTop: '0.9rem' }}>
+        <div className="btnrow" style={{ justifyContent: 'center', marginTop: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
           <button
             className="ghost"
             style={{ color: '#cfe0ef', borderColor: '#1d3f68' }}
@@ -390,6 +405,48 @@ export function Simulator(): ReactNode {
           >
             Heartbeat
           </button>
+          <button
+            className="ghost"
+            style={{ color: '#ffb3ba', borderColor: '#802626' }}
+            onClick={() => void resetDevice()}
+            title="Reset this device back to idle and close any active incident"
+          >
+            Reset button to idle
+          </button>
+        </div>
+
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'center',
+            gap: '1.5rem',
+            marginTop: '1.5rem',
+            paddingTop: '1rem',
+            borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+            flexWrap: 'wrap',
+          }}
+        >
+          {[
+            ['🛡️', '24/7 PROTECTION'],
+            ['📍', 'REAL-TIME LOCATION'],
+            ['🔒', 'PRIVATE & SECURE'],
+          ].map(([icon, label]) => (
+            <div key={label} style={{ textAlign: 'center', minWidth: '85px' }}>
+              <div style={{ fontSize: '1.2rem', marginBottom: '0.2rem' }}>{icon}</div>
+              <div
+                style={{
+                  fontSize: '0.65rem',
+                  fontWeight: 700,
+                  letterSpacing: '0.07em',
+                  opacity: 0.7,
+                  fontFamily: 'var(--font-head)',
+                  color: '#fff',
+                }}
+              >
+                {label}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 

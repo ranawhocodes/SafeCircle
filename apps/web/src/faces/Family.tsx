@@ -52,21 +52,26 @@ export function Family(): ReactNode {
 
   return (
     <main className="narrow">
-      <div className="card">
-        <div className="btnrow" style={{ marginBottom: '0.4rem' }}>
-          {data.isDrill && <span className="chip drill">DRILL — nobody needs help</span>}
-          {data.demoSpeed && <span className="chip demo">DEMO SPEED</span>}
+      <div className="portal-hero">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.4rem' }}>
+          <div className="hero-tag">LIVE FAMILY EMERGENCY STATUS</div>
+          <div className="btnrow" style={{ margin: 0 }}>
+            {data.isDrill && <span className="chip drill">DRILL — nobody needs help</span>}
+            {data.demoSpeed && <span className="chip demo">DEMO SPEED</span>}
+          </div>
         </div>
 
-        <h1>
-          {resolved ? 'Resolved' : 'Help is being arranged'}
-          {data.personName && <span className="muted small"> for {data.personName}</span>}
+        <h1 style={{ fontSize: '1.6rem', margin: '0.3rem 0' }}>
+          {resolved ? '✅ Incident Resolved' : '🚨 Help is Being Arranged'}
+          {data.personName && <span style={{ opacity: 0.9, fontSize: '1.1rem', display: 'block', fontWeight: 500 }}>for {data.personName}</span>}
         </h1>
 
-        <Progress state={data.state} />
+        <div style={{ marginTop: '1rem', background: 'rgba(255,255,255,0.06)', padding: '0.75rem', borderRadius: 'var(--radius)' }}>
+          <Progress state={data.state} />
+        </div>
 
         {data.state === 'cancel_verifying' && (
-          <div className="notice sim" role="status">
+          <div className="notice sim" role="status" style={{ marginTop: '0.8rem' }}>
             <div>
               <strong>A cancel was requested, and we are checking.</strong> Help has not been
               stopped. If we cannot confirm that they are safe, the alert continues.
@@ -75,7 +80,7 @@ export function Family(): ReactNode {
         )}
 
         {data.escalatedTo112 && (
-          <div className="notice danger" role="status">
+          <div className="notice danger" role="status" style={{ marginTop: '0.8rem' }}>
             <div>
               <strong>Police or ambulance have also been told.</strong>{' '}
               {data.escalationSimulated && <SimulatedChip what="112 handoff" />}
@@ -84,7 +89,7 @@ export function Family(): ReactNode {
         )}
 
         {data.volunteerObservedType && (
-          <div className="notice info" role="status">
+          <div className="notice info" role="status" style={{ marginTop: '0.8rem' }}>
             {data.volunteerObservedType}
           </div>
         )}
@@ -194,6 +199,21 @@ export function Family(): ReactNode {
       </div>
 
       <div className="notice sim">{data.notice}</div>
+
+      <div className="reassurance-bar">
+        <div className="item">
+          <div className="icon">🛡️</div>
+          <div className="label">24/7 PROTECTION</div>
+        </div>
+        <div className="item">
+          <div className="icon">📍</div>
+          <div className="label">REAL-TIME POSITION</div>
+        </div>
+        <div className="item">
+          <div className="icon">🔒</div>
+          <div className="label">PRIVATE & SECURE</div>
+        </div>
+      </div>
     </main>
   );
 }

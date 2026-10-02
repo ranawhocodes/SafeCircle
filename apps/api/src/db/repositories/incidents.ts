@@ -213,6 +213,14 @@ export async function setSeverity(
   await client.query('UPDATE incidents SET severity = $2 WHERE id = $1', [incidentId, severity]);
 }
 
+export async function setCaseType(
+  incidentId: string,
+  caseType: CaseType,
+  client: Queryable = pool,
+): Promise<void> {
+  await client.query('UPDATE incidents SET case_type = $2 WHERE id = $1', [incidentId, caseType]);
+}
+
 export async function markEscalated(incidentId: string, client: Queryable = pool): Promise<void> {
   // `escalated` is a flag, not a state: telling 112 stops nothing else.
   await client.query(
@@ -506,4 +514,19 @@ export async function listRecentIncidents(limit = 50): Promise<IncidentRecord[]>
     [limit],
   );
   return rows.map(toRecord);
+}
+
+export async function findActiveIncidentForVolunteer(volunteerId: string): Promise<string | null> {
+  const row = await one<{ incident_id: string }>(
+    `SELECT d.incident_id
+     FROM dispatches d
+     JOIN incidents i ON i.id = d.incident_id
+     WHERE d.volunteer_id = $1
+       AND d.response = 'accepted'
+       AND i.closed_at IS NULL
+     ORDER BY i.opened_at DESC
+     LIMIT 1`,
+    [volunteerId],
+  );
+  return row?.incident_id ?? null;
 }

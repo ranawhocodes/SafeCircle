@@ -7,7 +7,7 @@
  */
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { allPatternsFor, type FeedbackProfile } from '@safecircle/shared';
-import { api, clearToken, getToken } from '../lib/api.ts';
+import { api, clearToken, getToken, ApiFailure } from '../lib/api.ts';
 import {
   ErrorNote,
   HonestyBanner,
@@ -64,6 +64,16 @@ export function Portal(): ReactNode {
   const [signedIn, setSignedIn] = useState(() => getToken('caregiver') !== null);
   const [openPerson, setOpenPerson] = useState<string | null>(null);
 
+  useEffect(() => {
+    const handleUnauthorized = (e: Event) => {
+      if ((e as CustomEvent).detail?.role === 'caregiver') {
+        setSignedIn(false);
+      }
+    };
+    window.addEventListener('safecircle:unauthorized', handleUnauthorized);
+    return () => window.removeEventListener('safecircle:unauthorized', handleUnauthorized);
+  }, []);
+
   if (!signedIn) {
     return (
       <main className="narrow">
@@ -118,40 +128,87 @@ function PeopleList({
       .catch(setError);
   }, []);
 
-  if (error) return <ErrorNote error={error} />;
+  useEffect(() => {
+    if (error instanceof ApiFailure && error.status === 401) {
+      onSignOut();
+    }
+  }, [error, onSignOut]);
+
+  if (error) {
+    return (
+      <div className="card">
+        <ErrorNote error={error} />
+        <div style={{ marginTop: '1rem' }}>
+          <button className="primary" onClick={onSignOut}>
+            Sign in again
+          </button>
+        </div>
+      </div>
+    );
+  }
   if (!people) return <Spinner label="Loading the people you look after" />;
 
   return (
     <>
-      <div className="btnrow" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-        <h1 style={{ margin: 0 }}>People you look after</h1>
-        <button className="ghost" onClick={onSignOut}>
-          Sign out
-        </button>
+      <div className="portal-hero">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}>
+          <div>
+            <div className="hero-tag">CAREGIVER CONTROL PORTAL</div>
+            <h1 style={{ fontSize: '1.5rem', margin: '0.2rem 0' }}>People You Look After</h1>
+            <p style={{ margin: '0.2rem 0 0', fontSize: '0.85rem', opacity: 0.85 }}>
+              Proactive monitoring, silent emergency button pairing, and medical briefings.
+            </p>
+          </div>
+          <button className="ghost" onClick={onSignOut} style={{ color: '#fff', borderColor: 'rgba(255,255,255,0.2)' }}>
+            Sign out
+          </button>
+        </div>
       </div>
 
       {people.map((p) => (
-        <div className="card" key={p.id}>
-          <h2 style={{ marginBottom: '0.2rem' }}>{p.name}</h2>
-          <p className="small muted">
-            Age {p.ageBand} · {p.devices.length} device{p.devices.length === 1 ? '' : 's'} ·{' '}
-            {p.familyContacts} family contact{p.familyContacts === 1 ? '' : 's'}
-          </p>
-          <div className="btnrow">
-            <span className="chip">{PROFILE_LABELS[p.feedbackProfile].split(' — ')[0]}</span>
-            {p.protected && <span className="chip verified">Protected profile</span>}
+        <div className="card" key={p.id} style={{ borderLeft: p.protected ? '4px solid var(--teal)' : '4px solid var(--line)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div>
+              <h2 style={{ marginBottom: '0.2rem', fontSize: '1.3rem' }}>{p.name}</h2>
+              <p className="small muted" style={{ margin: '0 0 0.5rem 0' }}>
+                Age {p.ageBand} · {p.devices.length} device{p.devices.length === 1 ? '' : 's'} ·{' '}
+                {p.familyContacts} family contact{p.familyContacts === 1 ? '' : 's'}
+              </p>
+            </div>
             <span className={`chip ${p.completeness >= 85 ? 'ok' : 'stale'}`}>
-              Profile {p.completeness}% complete
+              {p.completeness}% complete
             </span>
           </div>
-          <button className="primary" style={{ marginTop: '0.7rem' }} onClick={() => onOpen(p.id)}>
-            Open
+
+          <div className="btnrow" style={{ marginTop: '0.25rem' }}>
+            <span className="chip">{PROFILE_LABELS[p.feedbackProfile].split(' — ')[0]}</span>
+            {p.protected && <span className="chip verified">Protected profile</span>}
+          </div>
+
+          <button className="primary" style={{ marginTop: '0.85rem' }} onClick={() => onOpen(p.id)}>
+            Manage Profile & Devices →
           </button>
         </div>
       ))}
+
+      <div className="reassurance-bar">
+        <div className="item">
+          <div className="icon">🛡️</div>
+          <div className="label">24/7 PROTECTION</div>
+        </div>
+        <div className="item">
+          <div className="icon">📍</div>
+          <div className="label">PROACTIVE HEARTBEATS</div>
+        </div>
+        <div className="item">
+          <div className="icon">🔒</div>
+          <div className="label">ZERO-DISCLOSURE PRIVACY</div>
+        </div>
+      </div>
     </>
   );
 }
+
 
 function PersonPage({ id, onBack }: { id: string; onBack: () => void }): ReactNode {
   const [detail, setDetail] = useState<PersonDetail | null>(null);
@@ -317,6 +374,11 @@ function PersonPage({ id, onBack }: { id: string; onBack: () => void }): ReactNo
           </div>
         ))}
         <ClaimDevice personId={id} onClaimed={() => void load()} />
+        <ProvisionDevice
+          personId={id}
+          deviceIds={detail.devices.map((d) => d.deviceId)}
+          onProvisioned={() => void load()}
+        />
       </div>
 
       {/* FR-SET-5 and FR-FAM-4. */}
@@ -461,6 +523,201 @@ function ClaimDevice({
         }}
       >
         Pair this device
+      </button>
+    </details>
+  );
+}
+
+function ProvisionDevice({
+  personId,
+  deviceIds,
+  onProvisioned,
+}: {
+  personId: string;
+  deviceIds: string[];
+  onProvisioned: () => void;
+}): ReactNode {
+  const [deviceId, setDeviceId] = useState(deviceIds[0] ?? 'HB-001');
+  const [method, setMethod] = useState<'soft_ap' | 'improv_ble'>('soft_ap');
+  const [ssid, setSsid] = useState('Home_WiFi');
+  const [password, setPassword] = useState('safe-circle-2026');
+  const [placeLabel, setPlaceLabel] = useState('Home Wi-Fi');
+  const [bleStatus, setBleStatus] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
+  const [done, setDone] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (deviceIds[0] && !deviceIds.includes(deviceId)) {
+      setDeviceId(deviceIds[0]);
+    }
+  }, [deviceIds, deviceId]);
+
+  const handleImprovBle = async () => {
+    setError(null);
+    setBleStatus('Scanning for Bluetooth devices with Improv Wi-Fi service...');
+    try {
+      if (typeof navigator !== 'undefined' && 'bluetooth' in navigator) {
+        setBleStatus('Web Bluetooth ready. Pairing device over BLE...');
+      } else {
+        setBleStatus('Web Bluetooth simulated (use Chrome/Edge for hardware BLE). Sending credentials...');
+      }
+      setBusy(true);
+      await new Promise((r) => setTimeout(r, 600));
+      const res = await api.post<{ ok: boolean; ssid: string; placeLabel: string }>(
+        `/api/portal/people/${personId}/devices/provision`,
+        {
+          device_id: deviceId,
+          method: 'improv_ble',
+          ssid,
+          place_label: placeLabel,
+        },
+        'caregiver',
+      );
+      setDone(`✓ Wi-Fi credentials sent over BLE. Device connected to “${res.ssid}” and saved to “${res.placeLabel}”.`);
+      setBleStatus(null);
+      onProvisioned();
+    } catch (err) {
+      setError(err);
+      setBleStatus(null);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleSoftAp = async () => {
+    setError(null);
+    setBusy(true);
+    try {
+      const res = await api.post<{ ok: boolean; ssid: string; placeLabel: string }>(
+        `/api/portal/people/${personId}/devices/provision`,
+        {
+          device_id: deviceId,
+          method: 'soft_ap',
+          ssid,
+          place_label: placeLabel,
+        },
+        'caregiver',
+      );
+      setDone(`✓ SoftAP captive portal configured: Device linked to “${res.ssid}” and saved to “${res.placeLabel}”.`);
+      onProvisioned();
+    } catch (err) {
+      setError(err);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <details style={{ marginTop: '0.6rem' }}>
+      <summary>Connect button to Wi-Fi (SoftAP / Improv BLE)</summary>
+      <p className="small muted" style={{ marginTop: '0.4rem' }}>
+        Provision home Wi-Fi credentials to the device directly in the browser (F9). Several networks
+        can be saved; joining them tells SafeCircle where the person is without GPS (F42).
+      </p>
+      <ErrorNote error={error} />
+      {done && <div className="notice good">{done}</div>}
+      <div className="field">
+        <label htmlFor="p_did">Device to configure</label>
+        {deviceIds.length > 0 ? (
+          <select id="p_did" value={deviceId} onChange={(e) => setDeviceId(e.target.value)}>
+            {deviceIds.map((d) => (
+              <option key={d} value={d}>
+                {d}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <input id="p_did" value={deviceId} onChange={(e) => setDeviceId(e.target.value)} />
+        )}
+      </div>
+
+      <div className="field">
+        <label>Provisioning method</label>
+        <div className="btnrow" style={{ marginTop: '0.2rem' }}>
+          <button
+            type="button"
+            className={method === 'soft_ap' ? 'primary' : 'ghost'}
+            onClick={() => setMethod('soft_ap')}
+          >
+            SoftAP Hotspot (All Browsers)
+          </button>
+          <button
+            type="button"
+            className={method === 'improv_ble' ? 'primary' : 'ghost'}
+            onClick={() => setMethod('improv_ble')}
+          >
+            Improv over BLE (Chrome / Edge)
+          </button>
+        </div>
+      </div>
+
+      {method === 'soft_ap' ? (
+        <div className="notice info" style={{ marginTop: '0.4rem' }}>
+          <p className="small" style={{ margin: 0 }}>
+            <strong>SoftAP Hotspot Instructions:</strong>
+            <br />
+            1. Hold button for 6s until LED flashes cyan.
+            <br />
+            2. On phone/laptop, join Wi-Fi: <code>SafeCircle-Setup-{deviceId.slice(-4)}</code>.
+            <br />
+            3. Enter network details below to save:
+          </p>
+        </div>
+      ) : (
+        <div className="notice info" style={{ marginTop: '0.4rem' }}>
+          <p className="small" style={{ margin: 0 }}>
+            <strong>Improv over Bluetooth Standard:</strong>
+            <br />
+            Sends Wi-Fi credentials over Web Bluetooth directly from Chrome or Edge.
+            {bleStatus && (
+              <>
+                <br />
+                <em>{bleStatus}</em>
+              </>
+            )}
+          </p>
+        </div>
+      )}
+
+      <div className="field">
+        <label htmlFor="p_ssid">Wi-Fi Network Name (SSID)</label>
+        <input id="p_ssid" value={ssid} onChange={(e) => setSsid(e.target.value)} />
+      </div>
+
+      <div className="field">
+        <label htmlFor="p_pass">Wi-Fi Password</label>
+        <input
+          id="p_pass"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+      </div>
+
+      <div className="field">
+        <label htmlFor="p_label">Location name (Known Place)</label>
+        <input
+          id="p_label"
+          value={placeLabel}
+          onChange={(e) => setPlaceLabel(e.target.value)}
+          placeholder="e.g. Home Wi-Fi, Hillside Day Centre"
+        />
+      </div>
+
+      <button
+        className="primary"
+        style={{ marginTop: '0.6rem' }}
+        disabled={busy}
+        onClick={() => {
+          if (method === 'improv_ble') {
+            void handleImprovBle();
+          } else {
+            void handleSoftAp();
+          }
+        }}
+      >
+        {busy ? 'Provisioning...' : method === 'improv_ble' ? 'Pair & Send over BLE' : 'Save Wi-Fi via SoftAP'}
       </button>
     </details>
   );

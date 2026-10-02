@@ -7,6 +7,7 @@ import { ingest, ingestLocationUpdate, runDispatchPhase } from '../domain/engine
 import { requestCancel } from '../domain/cancel.js';
 import { checkSequence, verifySignature } from '../security/hmac.js';
 import { statusFor } from '../services/deviceStatus.js';
+import { pool } from '../db/pool.js';
 /**
  * One error shape for every rejection, so a prober cannot tell a bad signature
  * from an unknown device from a replayed packet.
@@ -111,12 +112,13 @@ export async function deviceRoutes(app) {
         const outcome = await ingest(event);
         const cursor = await getStatusCursor(body.device_id);
         // Reply BEFORE the fan-out, so the person feels "we got it" first.
+        const silentRequested = outcome.incident.flags.silentRequested === true;
         const response = {
             incident_id: outcome.incident.id,
             merged: outcome.merged,
             stage: cursor.stage,
             seq: cursor.seq,
-            pattern: patternFor(cursor.stage, person.feedbackProfile),
+            pattern: patternFor(cursor.stage, person.feedbackProfile, { silentRequested }),
             severity: outcome.severity,
             location_source: outcome.location?.source ?? null,
             location_accuracy_m: outcome.location?.accuracyM ?? null,
@@ -213,13 +215,26 @@ export async function deviceRoutes(app) {
     });
     /**
      * Development helper for the bring-up steps in section 18.9: reset a device's
-     * status cursor so a rehearsal can start from idle.
+     * status cursor so a rehearsal can start from idle. Also resolves any open incidents
+     * for that device's person so it doesn't get dragged back into cancel_verifying.
      */
     app.post('/api/device/:deviceId/reset-status', async (req, reply) => {
         if (config.isProduction) {
             return reply.code(404).send({ error: { code: 'not_found', message: 'Not found.' } });
         }
+        const device = await findDevice(req.params.deviceId);
+        if (device?.personId) {
+            await pool.query("UPDATE incidents SET state = 'resolved', closed_at = now(), outcome = 'resolved_by_drill' WHERE person_id = $1 AND closed_at IS NULL", [device.personId]);
+        }
         await setStatusCursor(req.params.deviceId, 'idle', null);
+        return reply.send({ ok: true, stage: 'idle' });
+    });
+    app.post('/api/device/reset-all', async (req, reply) => {
+        if (config.isProduction) {
+            return reply.code(404).send({ error: { code: 'not_found', message: 'Not found.' } });
+        }
+        await pool.query("UPDATE incidents SET state = 'resolved', closed_at = now(), outcome = 'resolved_by_drill' WHERE closed_at IS NULL");
+        await pool.query("UPDATE device_status_cursor SET stage = 'idle', incident_id = NULL");
         return reply.send({ ok: true, stage: 'idle' });
     });
 }

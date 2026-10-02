@@ -4,11 +4,12 @@
  * Also the demo control surface: the verification outcome buttons are how a
  * presenter drives the simulated IVR on stage (section 22.1, scene 3).
  */
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import {
   api,
   clearToken,
   getToken,
+  ApiFailure,
   type DashboardDetail,
   type DashboardIncident,
 } from '../lib/api.ts';
@@ -29,6 +30,16 @@ import { MiniMap } from '../components/MiniMap.tsx';
 export function Dashboard(): ReactNode {
   const [signedIn, setSignedIn] = useState(() => getToken('dashboard') !== null);
   const [selected, setSelected] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleUnauthorized = (e: Event) => {
+      if ((e as CustomEvent).detail?.role === 'dashboard') {
+        setSignedIn(false);
+      }
+    };
+    window.addEventListener('safecircle:unauthorized', handleUnauthorized);
+    return () => window.removeEventListener('safecircle:unauthorized', handleUnauthorized);
+  }, []);
 
   if (!signedIn) {
     return (
@@ -74,7 +85,24 @@ function IncidentList({
   );
   const kpis = usePolling(() => api.get<Record<string, unknown>>('/api/dashboard/kpis', 'dashboard'), 15_000);
 
-  if (error) return <ErrorNote error={error} />;
+  useEffect(() => {
+    if (error instanceof ApiFailure && error.status === 401) {
+      onSignOut();
+    }
+  }, [error, onSignOut]);
+
+  if (error) {
+    return (
+      <div className="card">
+        <ErrorNote error={error} />
+        <div style={{ marginTop: '1rem' }}>
+          <button className="primary" onClick={onSignOut}>
+            Sign in again
+          </button>
+        </div>
+      </div>
+    );
+  }
   if (!data) return <Spinner label="Loading incidents" />;
 
   const open = data.incidents.filter((i) => i.closedAt === null);
@@ -90,6 +118,8 @@ function IncidentList({
           Sign out
         </button>
       </div>
+
+      <GuardDutyPanel />
 
       {open.length === 0 && (
         <div className="card center">
@@ -299,6 +329,20 @@ function IncidentDetail({ id, onBack }: { id: string; onBack: () => void }): Rea
     }
   };
 
+  const driveCheckIn = async (answer: string): Promise<void> => {
+    setActionError(null);
+    try {
+      await api.post(
+        `/api/dashboard/incidents/${id}/check-in-outcome`,
+        { answer },
+        'dashboard',
+      );
+      reload();
+    } catch (err) {
+      setActionError(err);
+    }
+  };
+
   return (
     <>
       <button className="ghost" onClick={onBack}>
@@ -362,6 +406,37 @@ function IncidentDetail({ id, onBack }: { id: string; onBack: () => void }): Rea
             No answer twice, a wrong PIN or the duress PIN all keep the alert alive at high priority —
             while the button stays quiet so an attacker is not tipped off.
           </p>
+        </div>
+      )}
+
+      {/* F15: Start-of-alert IVR Check-in demo control */}
+      {incident.state !== 'resolved' && !verifying && person && (
+        <div className="card" style={{ borderColor: 'var(--accent, #6366f1)', borderWidth: 1 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h2 style={{ margin: 0 }}>📞 Start-of-Alert Check-in Call (F15)</h2>
+            <SimulatedChip what="IVR simulator" />
+          </div>
+          <p className="small muted" style={{ marginTop: '0.4rem' }}>
+            Simulate DTMF answer from the person's phone. Refines severity scoring, case classification, and volunteer flashcards without blocking dispatch.
+          </p>
+          <ErrorNote error={actionError} />
+          <div className="btnrow" style={{ marginTop: '0.5rem', flexWrap: 'wrap' }}>
+            <button className="primary" onClick={() => void driveCheckIn('medical')}>
+              1 — Medical
+            </button>
+            <button className="warn" onClick={() => void driveCheckIn('fall')}>
+              2 — Fall
+            </button>
+            <button className="danger" onClick={() => void driveCheckIn('danger')}>
+              3 — Danger (P1)
+            </button>
+            <button className="ghost" onClick={() => void driveCheckIn('mistake')}>
+              4 — Mistake (Verify cancel)
+            </button>
+            <button className="ghost" onClick={() => void driveCheckIn('no_answer')}>
+              No answer
+            </button>
+          </div>
         </div>
       )}
 
@@ -549,5 +624,96 @@ function Outbox({ incidentId }: { incidentId: string }): ReactNode {
         </table>
       </div>
     </details>
+  );
+}
+
+function GuardDutyPanel(): ReactNode {
+  const { data, reload } = usePolling(
+    () =>
+      api.get<{
+        guards: Array<{ id: string; name: string; phone: string; onDuty: boolean; societyId: string }>;
+      }>('/api/dashboard/guards', 'dashboard'),
+    4000,
+  );
+  const [toggling, setToggling] = useState<string | null>(null);
+
+  const toggleDuty = async (guardId: string, current: boolean) => {
+    setToggling(guardId);
+    try {
+      await api.post('/api/dashboard/shift', { guardId, onDuty: !current }, 'dashboard');
+      reload();
+    } catch {
+      /* ignore */
+    } finally {
+      setToggling(null);
+    }
+  };
+
+  if (!data?.guards || data.guards.length === 0) return null;
+
+  return (
+    <div
+      className="card"
+      style={{
+        marginTop: '0.75rem',
+        marginBottom: '1rem',
+        padding: '0.9rem 1.2rem',
+        borderRadius: 'var(--radius)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: '0.75rem',
+        background: 'var(--surface)',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+        <span style={{ fontSize: '1.3rem' }}>🛡️</span>
+        <div>
+          <strong style={{ fontSize: '0.95rem', fontFamily: 'var(--font-head)' }}>Guard Desk Shift</strong>
+          <div className="small muted">Guards on duty receive loud sirens and escalated briefs.</div>
+        </div>
+      </div>
+      <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
+        {data.guards.map((g) => (
+          <div
+            key={g.id}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              padding: '0.35rem 0.75rem',
+              borderRadius: '10px',
+              background: g.onDuty ? 'rgba(42, 157, 92, 0.1)' : 'rgba(107, 127, 148, 0.08)',
+              border: `1px solid ${g.onDuty ? 'rgba(42, 157, 92, 0.3)' : 'var(--line)'}`,
+            }}
+          >
+            <div>
+              <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>{g.name}</span>
+              <span
+                style={{
+                  display: 'inline-block',
+                  marginLeft: '0.4rem',
+                  fontSize: '0.72rem',
+                  fontWeight: 700,
+                  color: g.onDuty ? 'var(--green)' : 'var(--muted)',
+                  textTransform: 'uppercase',
+                }}
+              >
+                {g.onDuty ? '● On duty' : '○ Off duty'}
+              </span>
+            </div>
+            <button
+              className={g.onDuty ? 'ghost small' : 'primary small'}
+              disabled={toggling === g.id}
+              onClick={() => void toggleDuty(g.id, g.onDuty)}
+              style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem', borderRadius: '8px' }}
+            >
+              {g.onDuty ? 'Go off duty' : 'Go on duty'}
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }

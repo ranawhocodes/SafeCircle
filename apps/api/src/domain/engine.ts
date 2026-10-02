@@ -37,7 +37,7 @@ import {
   setState,
   type IncidentRecord,
 } from '../db/repositories/incidents.js';
-import { findPerson, findPersonBySenderNumber } from '../db/repositories/people.js';
+import { findPerson, findPersonBySenderNumber, findPersonOwnPhone } from '../db/repositories/people.js';
 import { dispatchIncident } from '../services/dispatch.js';
 import { pushStage } from '../services/deviceStatus.js';
 import { alertFamily } from '../services/notification.js';
@@ -48,6 +48,7 @@ import {
   refineLocation,
 } from '../services/location.js';
 import { escalate } from './escalation.js';
+import { providers } from '../providers/index.js';
 
 export interface IngestOutcome {
   incident: IncidentRecord;
@@ -63,9 +64,13 @@ export interface IngestOutcome {
 async function identify(event: NormalisedEvent): Promise<PersonProfile | null> {
   if (event.onBehalfOfPersonId) return findPerson(event.onBehalfOfPersonId);
 
-  if (event.source === 'home_button' || event.source === 'go_pendant') {
-    // The route has already resolved and authenticated the device, and passes
-    // the person id as the sender.
+  if (
+    event.source === 'home_button' ||
+    event.source === 'go_pendant' ||
+    event.source === 'volunteer_app'
+  ) {
+    // The route has already resolved and authenticated the device or volunteer,
+    // and passes the person id as the sender.
     return findPerson(event.sender);
   }
   const match = await findPersonBySenderNumber(event.sender);
@@ -230,6 +235,37 @@ export async function runDispatchPhase(
         familyToken: incident.familyToken ?? '',
         isDrill: incident.flags.drill === true,
         demoSpeed: incident.demoTimeScale !== 1,
+      });
+    }
+
+    // Start-of-alert check-in call (Section 6.4, F15):
+    // In parallel with dispatch for people with a phone and no discreet/stealth flag.
+    if (
+      person &&
+      person.hasOwnPhone &&
+      !incident.flags.drill &&
+      !incident.flags.silentRequested &&
+      person.feedbackProfile !== 'discreet' &&
+      person.feedbackProfile !== 'stealth'
+    ) {
+      void findPersonOwnPhone(person.id).then((phone) => {
+        if (!phone) return;
+        return providers.voice
+          .placeCall({
+            incidentId: incident.id,
+            to: phone,
+            flow: 'check_in',
+            language: person.languages[0] ?? 'en',
+            expectPin: false,
+          })
+          .then(async () => {
+            await appendEvent(incident.id, 'check_in_call_placed', 'system', null, {
+              to: phone,
+              simulated: true,
+            });
+          });
+      }).catch(() => {
+        // Never block dispatch on check-in call failure
       });
     }
 

@@ -156,6 +156,40 @@ export async function portalRoutes(app) {
         };
         return reply.code(409).send({ error: { code: result, message: messages[result] } });
     });
+    /**
+     * F9 / FR-SET-10: Browser Wi-Fi provisioning (SoftAP captive portal or Improv over BLE).
+     * Stores the provisioned SSID and optionally links to a known place for positioning (F42).
+     */
+    app.post('/api/portal/people/:id/devices/provision', async (req, reply) => {
+        const session = await requireSession(req, reply, ['caregiver']);
+        if (!session)
+            return;
+        if (!(await caregiverManages(session.subjectId, req.params.id))) {
+            return reply.code(403).send({ error: { code: 'forbidden', message: 'Not your person.' } });
+        }
+        const { device_id, method, ssid, bssid, place_label } = req.body ?? {};
+        if (!device_id || !ssid) {
+            return reply.code(400).send({ error: { code: 'bad_request', message: 'Device ID and SSID required.' } });
+        }
+        const person = await findPerson(req.params.id);
+        if (!person)
+            return reply.code(404).send({ error: { code: 'not_found', message: 'Person not found.' } });
+        const label = place_label?.trim() || 'Home Wi-Fi';
+        const effectiveBssid = bssid?.trim() || `sc:${device_id.toLowerCase()}`;
+        if (person.lat && person.lng) {
+            await pool.query(`INSERT INTO known_places (person_id, label, wifi_bssids, lat, lng, radius_m)
+         VALUES ($1, $2, ARRAY[$3], $4, $5, 50)`, [req.params.id, label, effectiveBssid, person.lat, person.lng]);
+        }
+        return reply.send({
+            ok: true,
+            provisioned: true,
+            deviceId: device_id,
+            ssid,
+            method: method ?? 'soft_ap',
+            placeLabel: label,
+            bssid: effectiveBssid,
+        });
+    });
     /** FR-SET-4: trigger numbers, each needing confirmation before it routes. */
     app.post('/api/portal/people/:id/sender-numbers', async (req, reply) => {
         const session = await requireSession(req, reply, ['caregiver']);

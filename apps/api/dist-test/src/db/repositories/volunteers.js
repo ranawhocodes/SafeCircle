@@ -1,4 +1,5 @@
-import { coarseCell } from '@safecircle/shared';
+import { randomBytes } from 'node:crypto';
+import { coarseCell, evaluateVouchOutcome } from '@safecircle/shared';
 import { one, pool, query } from '../pool.js';
 export async function findVolunteer(id) {
     const row = await one(`SELECT v.*, ARRAY(
@@ -24,7 +25,28 @@ export async function findVolunteer(id) {
         homeLng: row.home_lng,
         reliabilityScore: row.reliability_score,
         isWoman: row.is_woman,
+        asPersonId: row.as_person_id ?? null,
     };
+}
+/**
+ * Ensure a volunteer has a corresponding person row so the engine can treat them
+ * as the subject of an emergency when they raise an SOS (F23).
+ */
+export async function ensurePersonForVolunteer(v) {
+    if (v.asPersonId)
+        return v.asPersonId;
+    const personId = `per_${v.id}`;
+    await pool.query(`INSERT INTO people (
+       id, name, age_band, languages, society_id, lat, lng, own_phone, has_own_phone, feedback_profile
+     ) VALUES ($1, $2, '18-59', $3, $4, $5, $6, $7, true, 'standard')
+     ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name`, [personId, v.name, v.languages, v.societyId, v.homeLat, v.homeLng, v.phone]);
+    try {
+        await pool.query('UPDATE volunteers SET as_person_id = $2 WHERE id = $1', [v.id, personId]);
+    }
+    catch {
+        /* ignore */
+    }
+    return personId;
 }
 /**
  * FR-VOL-8: a volunteer cannot go available until the mandatory tutorial and
@@ -120,5 +142,100 @@ export async function tallyVouches(candidateId) {
             out.abstain = r.n;
     }
     return out;
+}
+export async function getTutorialProgress(volunteerId) {
+    const rows = await query('SELECT module_id, score FROM volunteer_module_progress WHERE volunteer_id = $1', [volunteerId]);
+    const completedModules = rows.map((r) => r.module_id);
+    const scores = {};
+    for (const r of rows) {
+        if (r.score !== null)
+            scores[r.module_id] = r.score;
+    }
+    const v = await findVolunteer(volunteerId);
+    return {
+        completedModules,
+        scores,
+        isComplete: v?.tutorialCompletedAt !== null,
+    };
+}
+export async function saveModuleProgress(volunteerId, moduleId, score) {
+    await pool.query(`INSERT INTO volunteer_module_progress (volunteer_id, module_id, score, completed_at)
+     VALUES ($1, $2, $3, now())
+     ON CONFLICT (volunteer_id, module_id) DO UPDATE
+       SET score = COALESCE($3, volunteer_module_progress.score), completed_at = now()`, [volunteerId, moduleId, score ?? null]);
+    const progress = await getTutorialProgress(volunteerId);
+    const required = ['m1_safety', 'm2_speed', 'm3_scene', 'm4_privacy', 'm5_quiz', 'm6_drill'];
+    const allDone = required.every((m) => progress.completedModules.includes(m));
+    if (allDone) {
+        await completeTutorial(volunteerId);
+    }
+    return { allDone };
+}
+export async function createVoteRound(candidateId, societyId, deadlineDays = 7) {
+    const id = `round-${randomBytes(6).toString('hex')}`;
+    const deadline = new Date(Date.now() + deadlineDays * 24 * 3600 * 1000);
+    await pool.query(`INSERT INTO vote_rounds (id, candidate_id, society_id, status, opened_at, deadline_at)
+     VALUES ($1, $2, $3, 'open', now(), $4)`, [id, candidateId, societyId, deadline]);
+    return id;
+}
+export async function findOpenVoteRoundsForVoter(voterId) {
+    const rows = await query(`SELECT vr.id, vr.candidate_id, v.name AS candidate_name, vr.society_id, vr.status, vr.opened_at, vr.deadline_at
+     FROM vote_rounds vr
+     JOIN volunteers v ON v.id = vr.candidate_id
+     WHERE vr.status = 'open'
+       AND vr.candidate_id != $1
+       AND vr.id NOT IN (SELECT round_id FROM vouches WHERE voter_id = $1 AND round_id IS NOT NULL)
+     ORDER BY vr.opened_at DESC`, [voterId]);
+    const out = [];
+    for (const r of rows) {
+        const tally = await tallyRoundVouches(r.id);
+        out.push({
+            id: r.id,
+            candidateId: r.candidate_id,
+            candidateName: r.candidate_name,
+            societyId: r.society_id,
+            status: r.status,
+            openedAt: r.opened_at,
+            deadlineAt: r.deadline_at,
+            vouchCount: tally.vouch,
+            concernCount: tally.concern,
+        });
+    }
+    return out;
+}
+export async function tallyRoundVouches(roundId) {
+    const rows = await query('SELECT choice, at FROM vouches WHERE round_id = $1', [roundId]);
+    let vouch = 0;
+    let concern = 0;
+    let abstain = 0;
+    const entries = [];
+    for (const r of rows) {
+        if (r.choice === 'vouch')
+            vouch++;
+        else if (r.choice === 'concern')
+            concern++;
+        else
+            abstain++;
+        entries.push({ choice: r.choice, createdAt: r.at });
+    }
+    return { vouch, concern, abstain, entries };
+}
+export async function castRoundVote(roundId, voterId, choice, encReason = null) {
+    const round = await one('SELECT id, candidate_id, society_id, status, opened_at, deadline_at FROM vote_rounds WHERE id = $1', [roundId]);
+    if (!round)
+        throw new Error('Round not found');
+    await pool.query(`INSERT INTO vouches (round_id, candidate_id, voter_id, choice, enc_private_reason, at)
+     VALUES ($1, $2, $3, $4, $5, now())
+     ON CONFLICT (candidate_id, voter_id) DO UPDATE
+       SET round_id = $1, choice = $4, enc_private_reason = $5, at = now()`, [roundId, round.candidate_id, voterId, choice, encReason]);
+    const tally = await tallyRoundVouches(roundId);
+    const evaluation = evaluateVouchOutcome(tally.entries, round.opened_at, new Date());
+    if (evaluation.status !== 'open') {
+        await pool.query('UPDATE vote_rounds SET status = $2, resolved_at = now() WHERE id = $1', [roundId, evaluation.status]);
+        if (evaluation.status === 'passed') {
+            await setTrustLevel(round.candidate_id, 2);
+        }
+    }
+    return { status: evaluation.status, outcomeReason: evaluation.reason };
 }
 //# sourceMappingURL=volunteers.js.map

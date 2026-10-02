@@ -96,10 +96,19 @@ export async function statusFor(
 ): Promise<DeviceStatus> {
   const cursor = await getStatusCursor(deviceId);
   const incidentOpen = cursor.incidentId !== null && cursor.stage !== 'idle';
+
+  // F6: if this device's open incident was triggered by a silent_panic, the
+  // feedback must use the discreet transform regardless of the person's profile.
+  let silentRequested = false;
+  if (cursor.incidentId) {
+    const incident = await findIncident(cursor.incidentId);
+    if (incident?.flags.silentRequested) silentRequested = true;
+  }
+
   return {
     stage: cursor.stage,
     seq: cursor.seq,
-    pattern: patternFor(cursor.stage, profile),
+    pattern: patternFor(cursor.stage, profile, { silentRequested }),
     incidentOpen,
     // Polling drains the battery, which is acceptable during an emergency and
     // not between them (section 7.3).

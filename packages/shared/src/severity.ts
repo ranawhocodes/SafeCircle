@@ -81,12 +81,19 @@ export function scoreSeverity(inputs: SeverityInputs): SeverityResult {
   if (event.isDrill) flags.drill = true;
   if (event.onBehalfOfPersonId) flags.raisedByCaregiver = true;
   if (person?.feedbackProfile === 'stealth') flags.stealth = true;
+  if (event.type === 'silent_panic') flags.silentRequested = true;
 
   // An unknown sender never reaches volunteers automatically (FR-TRG-6).
   if (!person) {
     flags.unverified = true;
     reasons.push('Sender is not in the registry: guard desk and dashboard only.');
     return { severity: 'unverified', caseType: 'unknown', flags, reasons };
+  }
+
+  // F23: Volunteer's own SOS — immediate P1 danger
+  if (event.source === 'volunteer_app') {
+    reasons.push('Volunteer reported immediate danger on scene: forced P1.');
+    return { severity: 'P1', caseType: 'harassment', flags, reasons };
   }
 
   // --- P1 rules, most serious first --------------------------------------

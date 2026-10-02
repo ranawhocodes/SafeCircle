@@ -239,8 +239,12 @@ function applyProfile(pattern: FeedbackPattern, profile: FeedbackProfile): Feedb
 export function patternFor(
   stage: DeviceStage,
   profile: FeedbackProfile = 'standard',
+  opts?: { silentRequested?: boolean },
 ): FeedbackPattern {
-  return transformForProfile(STANDARD[stage], profile);
+  // F6: a silent_panic event forces the discreet transform regardless of the
+  // person's configured profile — the gesture's purpose is silence (§7.2).
+  const effectiveProfile = opts?.silentRequested ? 'discreet' : profile;
+  return transformForProfile(STANDARD[stage], effectiveProfile);
 }
 
 export function allPatternsFor(profile: FeedbackProfile): FeedbackPattern[] {

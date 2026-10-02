@@ -279,4 +279,189 @@ test('FR-INC-9: a GPS fix is not replaced by a worse later estimate', async () =
     assert.equal(famView.body.personLocation.source, 'gps', 'the map must never get worse');
     assert.equal(famView.body.personLocation.accuracyM, 8);
 });
+test('F23: volunteer in danger raises forced P1 emergency incident', async () => {
+    const volToken = await signIn('+919999900101', 'volunteer');
+    const res = await authPost('/api/volunteer/danger', { lat: 13.0025, lng: 80.2672 }, volToken);
+    assert.equal(res.status, 201);
+    assert.equal(res.body.ok, true);
+    assert.equal(res.body.severity, 'P1');
+    assert.ok(res.body.incidentId);
+    const row = await incidentRow(res.body.incidentId);
+    assert.equal(row.severity, 'P1');
+    assert.equal(row.source, 'volunteer_app');
+    // Verify dashboard sees this incident as P1
+    const dashToken = await signIn('+919999900001', 'dashboard');
+    const dashList = await authGet('/api/dashboard/incidents', dashToken);
+    const found = dashList.body.incidents.find((i) => i.id === res.body.incidentId);
+    assert.ok(found !== undefined, 'incident must be visible on the dashboard');
+    assert.equal(found.severity, 'P1');
+});
+test('Guard shift toggle: guard can toggle shift on and off from the dashboard', async () => {
+    const dashToken = await signIn('+919999900001', 'dashboard');
+    const initial = await authGet('/api/dashboard/guards', dashToken);
+    assert.ok(Array.isArray(initial.body.guards));
+    const ravi = initial.body.guards.find((g) => g.id === 'grd_ravi');
+    assert.ok(ravi !== undefined);
+    // Toggle Ravi off duty
+    const offRes = await authPost('/api/dashboard/shift', { guardId: 'grd_ravi', onDuty: false }, dashToken);
+    assert.equal(offRes.status, 200);
+    assert.equal(offRes.body.ok, true);
+    assert.equal(offRes.body.guard.onDuty, false);
+    // Verify in guards list
+    const updated = await authGet('/api/dashboard/guards', dashToken);
+    const raviUpdated = updated.body.guards.find((g) => g.id === 'grd_ravi');
+    assert.equal(raviUpdated.onDuty, false);
+    // Toggle Ravi back on duty
+    const onRes = await authPost('/api/dashboard/shift', { guardId: 'grd_ravi', onDuty: true }, dashToken);
+    assert.equal(onRes.status, 200);
+    assert.equal(onRes.body.guard.onDuty, true);
+});
+test('F28: Tutorial course modules, quiz grading (80% gate), and practice drill alert', async () => {
+    // Sign in as unregistered/uncompleted volunteer Nithya (+919999900108)
+    const token = await signIn('+919999900108', 'volunteer');
+    // 1. Get initial tutorial status
+    const statusRes = await authGet('/api/volunteer/tutorial/status', token);
+    assert.equal(statusRes.status, 200);
+    assert.equal(statusRes.body.modules.length, 6);
+    assert.ok(Array.isArray(statusRes.body.quizQuestions));
+    // 2. Complete content modules M1-M4
+    for (const modId of ['m1_safety', 'm2_speed', 'm3_scene', 'm4_privacy']) {
+        const modRes = await authPost(`/api/volunteer/tutorial/module/${modId}`, {}, token);
+        assert.equal(modRes.status, 200);
+        assert.equal(modRes.body.ok, true);
+    }
+    // 3. Submit failing quiz (<80%)
+    const failQuizRes = await authPost('/api/volunteer/tutorial/module/m5_quiz', { answers: { q1: 0, q2: 0, q3: 0, q4: 0, q5: 0 } }, token);
+    assert.equal(failQuizRes.status, 400);
+    assert.equal(failQuizRes.body.passed, false);
+    // 4. Submit passing quiz (100%)
+    const passQuizRes = await authPost('/api/volunteer/tutorial/module/m5_quiz', { answers: { q1: 1, q2: 2, q3: 1, q4: 2, q5: 2 } }, token);
+    assert.equal(passQuizRes.status, 200);
+    assert.equal(passQuizRes.body.passed, true);
+    assert.equal(passQuizRes.body.score, 100);
+    // 5. Trigger practice drill alert (M6)
+    const practiceRes = await authPost('/api/volunteer/tutorial/practice-alert', {}, token);
+    assert.equal(practiceRes.status, 200);
+    assert.ok(practiceRes.body.incidentId.startsWith('drill-'));
+    // Volunteer checks alerts -> the practice alert is present at Tier 1!
+    const alertsRes = await authGet('/api/volunteer/alerts', token);
+    const practiceAlert = alertsRes.body.alerts.find((a) => a.incidentId === practiceRes.body.incidentId);
+    assert.ok(practiceAlert !== undefined, 'Practice alert must appear in volunteer alerts list');
+    assert.equal(practiceAlert.tier, 1);
+    // Volunteer accepts practice alert
+    const acceptRes = await authPost(`/api/incidents/${practiceRes.body.incidentId}/respond`, { response: 'accepted' }, token);
+    assert.equal(acceptRes.status, 200);
+    // Volunteer marks resolved -> marks M6 complete and grants tutorial certification
+    const resolveRes = await authPost(`/api/incidents/${practiceRes.body.incidentId}/status`, { status: 'resolved' }, token);
+    assert.equal(resolveRes.status, 200);
+    // Verify tutorial is now marked complete and volunteer can go available!
+    const meRes = await authGet('/api/volunteer/me', token);
+    assert.equal(meRes.body.tutorialComplete, true);
+});
+test('F26: Community voting round, voting, and L2 trust level upgrade on passing', async () => {
+    // Nithya (+919999900108) is at trust level 1.
+    const nithyaToken = await signIn('+919999900108', 'volunteer');
+    // Nithya requests community verification (creates a vote round)
+    const reqRes = await authPost('/api/volunteer/voting/request', {}, nithyaToken);
+    assert.equal(reqRes.status, 200);
+    assert.ok(reqRes.body.roundId);
+    const roundId = reqRes.body.roundId;
+    // Sign in as existing verified L2 volunteer Arun (+919999900102)
+    const arunToken = await signIn('+919999900102', 'volunteer');
+    // Arun sees Nithya's open voting round
+    const roundsRes = await authGet('/api/volunteer/voting/rounds', arunToken);
+    assert.equal(roundsRes.status, 200);
+    const foundRound = roundsRes.body.rounds.find((r) => r.id === roundId);
+    assert.ok(foundRound !== undefined, 'Arun must see open vote round');
+    assert.equal(foundRound.candidateName, 'Nithya P (new)');
+    // Arun votes to vouch
+    const voteRes = await authPost(`/api/volunteer/voting/rounds/${roundId}/vote`, { choice: 'vouch' }, arunToken);
+    assert.equal(voteRes.status, 200);
+    assert.equal(voteRes.body.ok, true);
+    // Add 2 more vouches from other volunteers to reach >=3 quorum
+    const { pool } = await import('../src/db/pool.js');
+    await pool.query(`INSERT INTO vouches (round_id, candidate_id, voter_id, choice, at)
+     VALUES ($1, 'vol_new', 'vol_priya_n', 'vouch', now()),
+            ($1, 'vol_new', 'vol_karthik', 'vouch', now())`, [roundId]);
+    // Cast round evaluation
+    const { castRoundVote } = await import('../src/db/repositories/volunteers.js');
+    const evaluated = await castRoundVote(roundId, 'vol_deepa', 'vouch');
+    assert.equal(evaluated.status, 'passed');
+    // Nithya is now promoted to Trust Level 2 (Verified)
+    const nithyaUpdated = await authGet('/api/volunteer/me', nithyaToken);
+    assert.equal(nithyaUpdated.body.trustLevel, 2);
+    assert.equal(nithyaUpdated.body.badge, 'Verified');
+});
+test('F37: Proactive low battery and silent device health alerting with cooldown', async () => {
+    const { checkDeviceHealthAlerts } = await import('../src/services/deviceHealth.js');
+    const { pool } = await import('../src/db/pool.js');
+    // Set HB-001 to low battery (15%) and silent
+    await pool.query(`UPDATE devices
+     SET battery_pct = 15, last_seen_at = now() - interval '25 hours', last_health_alert_at = NULL
+     WHERE device_id = 'HB-001'`);
+    // Run health alert check
+    const result = await checkDeviceHealthAlerts(new Date());
+    assert.ok(result.alertedDevices.includes('HB-001'));
+    assert.ok(result.notificationsSent > 0);
+    // Run again immediately -> cooldown prevents duplicate spamming
+    const immediateRepeat = await checkDeviceHealthAlerts(new Date());
+    assert.ok(!immediateRepeat.alertedDevices.includes('HB-001'));
+    assert.equal(immediateRepeat.notificationsSent, 0);
+});
+test('F15: Start-of-alert check-in call placed, DTMF answers update case, flashcards, or cancel', async () => {
+    const dashToken = await signIn('+919999900003', 'dashboard');
+    const volToken = await signIn('+919999900102', 'volunteer'); // Arun
+    // 1. Trigger incident via button for Lakshmi
+    const pressRes = await press({ deviceId: 'HB-001', event: 'panic' });
+    assert.equal(pressRes.status, 202);
+    // Find the open incident
+    const openRes = await authGet('/api/dashboard/incidents', dashToken);
+    const inc = openRes.body.incidents[0];
+    assert.ok(inc);
+    // Check event timeline: check_in_call_placed must be recorded
+    const detailRes = await authGet(`/api/dashboard/incidents/${inc.id}`, dashToken);
+    const placedEvent = detailRes.body.timeline.find((e) => e.kind === 'check_in_call_placed');
+    assert.ok(placedEvent !== undefined, 'Check-in call must be placed in parallel with dispatch');
+    // 2. Simulate DTMF answer: 2 (Fall)
+    const answerRes = await authPost(`/api/dashboard/incidents/${inc.id}/check-in-outcome`, { answer: 'fall' }, dashToken);
+    assert.equal(answerRes.status, 200);
+    assert.equal(answerRes.body.answer, 'fall');
+    // Verify incident case_type updated to fall
+    const updatedDetail = await authGet(`/api/dashboard/incidents/${inc.id}`, dashToken);
+    assert.equal(updatedDetail.body.incident.caseType, 'fall');
+    // Volunteer accepts alert and fetches flashcards -> context reflects fall
+    await authPost(`/api/incidents/${inc.id}/respond`, { response: 'accepted' }, volToken);
+    const cardsRes = await authGet(`/api/incidents/${inc.id}/flashcards`, volToken);
+    assert.equal(cardsRes.status, 200);
+    assert.ok(cardsRes.body.likely.some((c) => c.key === 'fall_older_person'));
+    // 3. Test DTMF answer 4 (Mistake) triggers cancel verification
+    const mistakeRes = await authPost(`/api/dashboard/incidents/${inc.id}/check-in-outcome`, { answer: 'mistake' }, dashToken);
+    assert.equal(mistakeRes.status, 200);
+    const verifyingDetail = await authGet(`/api/dashboard/incidents/${inc.id}`, dashToken);
+    assert.equal(verifyingDetail.body.incident.state, 'cancel_verifying');
+});
+test('F7: Missed-call webhook opens or joins emergency incident', async () => {
+    // Lakshmi misses a call to the SafeCircle number (+919999900001)
+    const missedRes = await plainPost('/webhooks/missed-call', { from: '+919999900001', caller_id: '+919999900001' });
+    assert.equal(missedRes.status, 200);
+    assert.equal(missedRes.body.ok, true);
+    assert.ok(missedRes.body.incident_id);
+});
+test('F9: Browser Wi-Fi provisioning stores SSID and links to known place for positioning', async () => {
+    const caregiverToken = await signIn('+919999900010', 'caregiver'); // Priya
+    const personRes = await authGet('/api/portal/people', caregiverToken);
+    const lakshmiId = personRes.body.people[0].id;
+    // Provision Wi-Fi via SoftAP
+    const provRes = await authPost(`/api/portal/people/${lakshmiId}/devices/provision`, {
+        device_id: 'HB-001',
+        method: 'soft_ap',
+        ssid: 'Shanti_Niketan_Home',
+        place_label: 'Flat 402 Home Wi-Fi',
+    }, caregiverToken);
+    assert.equal(provRes.status, 200);
+    assert.equal(provRes.body.ok, true);
+    assert.equal(provRes.body.provisioned, true);
+    assert.equal(provRes.body.ssid, 'Shanti_Niketan_Home');
+    assert.equal(provRes.body.placeLabel, 'Flat 402 Home Wi-Fi');
+});
 //# sourceMappingURL=triggers.test.js.map

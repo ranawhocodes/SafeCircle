@@ -13,6 +13,7 @@ import { findOpenIncidentForPerson } from '../db/repositories/incidents.js';
 import { ingest, runDispatchPhase } from '../domain/engine.js';
 import { requestCancel } from '../domain/cancel.js';
 import { applyVerificationOutcome } from '../domain/cancel.js';
+import { applyCheckInAnswer } from '../domain/checkIn.js';
 import { providers } from '../providers/index.js';
 import { verifyWebhook } from '../security/webhook.js';
 
@@ -58,18 +59,49 @@ export async function webhookRoutes(app: FastifyInstance): Promise<void> {
   });
 
   /**
-   * The provider's DTMF result for a verification call. In this build the
-   * dashboard drives the same path; this route is what a real Exotel flow posts
-   * to.
+   * F7: Missed-call trigger from registered numbers.
+   * Telephony webhook posts caller ID; registered caller opens or joins an SOS.
    */
-  app.post<{ Body: { incident_id: string; digits?: string; status?: string } }>(
+  app.post<{ Body: { from?: string; caller_id?: string; timestamp?: string } }>(
+    '/webhooks/missed-call',
+    async (req, reply) => {
+      if (!verifyWebhook('voice', req.headers, req.body)) {
+        return reply.code(401).send({ error: { code: 'bad_signature', message: 'Rejected.' } });
+      }
+      const from = (req.body?.from ?? req.body?.caller_id ?? '').trim();
+      return handleInbound({ from, text: 'HELP' }, 'sms', reply);
+    },
+  );
+
+  /**
+   * The provider's DTMF result for a verification call or start-of-alert check-in call (F15).
+   */
+  app.post<{ Body: { incident_id: string; digits?: string; status?: string; flow?: 'verify_cancel' | 'check_in' } }>(
     '/webhooks/voice',
     async (req, reply) => {
       if (!verifyWebhook('voice', req.headers, req.body)) {
         return reply.code(401).send({ error: { code: 'bad_signature', message: 'Rejected.' } });
       }
 
-      const { incident_id, digits, status } = req.body;
+      const { incident_id, digits, status, flow } = req.body;
+      if (flow === 'check_in') {
+        const answer =
+          status === 'no-answer' || status === 'busy' || status === 'failed'
+            ? 'no_answer'
+            : digits === '1'
+              ? 'medical'
+              : digits === '2'
+                ? 'fall'
+                : digits === '3'
+                  ? 'danger'
+                  : digits === '4'
+                    ? 'mistake'
+                    : 'no_answer';
+
+        const result = await applyCheckInAnswer(incident_id, answer);
+        return reply.send({ ok: result.ok, answer: result.answer });
+      }
+
       const outcome =
         status === 'no-answer' || status === 'busy' || status === 'failed'
           ? 'no_answer'

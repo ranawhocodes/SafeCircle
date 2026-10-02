@@ -131,8 +131,22 @@ export interface IncidentFlags {
   raisedByCaregiver?: boolean;
   possibleAbduction?: boolean;
   stealth?: boolean;
+  /**
+   * Set when the triggering event was `silent_panic` (the discreet triple-press
+   * gesture). Forces the device to use the discreet feedback transform regardless
+   * of the person's configured feedback profile — because the gesture's whole
+   * purpose is silence (section 7.2, F6).
+   */
+  silentRequested?: boolean;
   /** Set when an accepted responder has not moved closer - section 16.4 #16/#17. */
   responderNotMoving?: boolean;
+  /** Set when this incident is a volunteer onboarding practice drill alert (F28). */
+  practice?: boolean;
+  practiceVolunteerId?: string;
+  /** Check-in answer to the start-of-alert IVR call (F15). */
+  checkInAnswer?: 'medical' | 'fall' | 'danger' | 'mistake' | 'no_answer';
+  /** Caregiver report text from trigger or portal. */
+  caregiverReport?: string;
 }
 
 export type CaseType =

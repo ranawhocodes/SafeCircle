@@ -16,3 +16,5 @@ export * from './feedback.js';
 export * from './ranking.js';
 export * from './flashcards.js';
 export * from './disclosure.js';
+export * from './tutorial.js';
+export * from './vouching.js';

@@ -8,11 +8,13 @@
  * and the server would refuse to send it anyway (FR-BRF-1).
  */
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { TUTORIAL_MODULES, QUIZ_QUESTIONS } from '@safecircle/shared';
 import {
   api,
   clearToken,
   getToken,
   openSocket,
+  ApiFailure,
   type Briefing,
   type CardDto,
   type FlashcardSetDto,
@@ -58,6 +60,16 @@ const CASE_LABELS: Record<string, string> = {
 export function Volunteer(): ReactNode {
   const [signedIn, setSignedIn] = useState(() => getToken('volunteer') !== null);
 
+  useEffect(() => {
+    const handleUnauthorized = (e: Event) => {
+      if ((e as CustomEvent).detail?.role === 'volunteer') {
+        setSignedIn(false);
+      }
+    };
+    window.addEventListener('safecircle:unauthorized', handleUnauthorized);
+    return () => window.removeEventListener('safecircle:unauthorized', handleUnauthorized);
+  }, []);
+
   if (!signedIn) {
     return (
       <main className="narrow">
@@ -77,14 +89,46 @@ export function Volunteer(): ReactNode {
       </main>
     );
   }
-  return <VolunteerHome onSignOut={() => { clearToken('volunteer'); setSignedIn(false); }} />;
+
+  return (
+    <VolunteerHome
+      onSignOut={() => {
+        try {
+          localStorage.removeItem('safecircle.active_incident.volunteer');
+        } catch {
+          /* ignore */
+        }
+        clearToken('volunteer');
+        setSignedIn(false);
+      }}
+    />
+  );
 }
 
 function VolunteerHome({ onSignOut }: { onSignOut: () => void }): ReactNode {
   const [me, setMe] = useState<Me | null>(null);
   const [error, setError] = useState<unknown>(null);
-  const [activeIncident, setActiveIncident] = useState<string | null>(null);
+  const [activeIncident, setActiveIncident] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem('safecircle.active_incident.volunteer');
+    } catch {
+      return null;
+    }
+  });
   const [liveNudge, setLiveNudge] = useState<string | null>(null);
+
+  const setAndPersistActiveIncident = useCallback((id: string | null) => {
+    setActiveIncident(id);
+    try {
+      if (id) {
+        localStorage.setItem('safecircle.active_incident.volunteer', id);
+      } else {
+        localStorage.removeItem('safecircle.active_incident.volunteer');
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   const loadMe = useCallback(async () => {
     try {
@@ -95,13 +139,40 @@ function VolunteerHome({ onSignOut }: { onSignOut: () => void }): ReactNode {
   }, []);
 
   useEffect(() => {
+    if (error instanceof ApiFailure && error.status === 401) {
+      onSignOut();
+    }
+  }, [error, onSignOut]);
+
+  useEffect(() => {
     void loadMe();
   }, [loadMe]);
 
   const { data: alertData, reload: reloadAlerts } = usePolling(
-    () => api.get<{ alerts: PreAcceptAlert[] }>('/api/volunteer/alerts', 'volunteer'),
+    () =>
+      api.get<{ alerts: PreAcceptAlert[]; activeIncidentId?: string | null }>(
+        '/api/volunteer/alerts',
+        'volunteer',
+      ),
     3000,
   );
+
+  useEffect(() => {
+    if (alertData?.activeIncidentId !== undefined) {
+      setAndPersistActiveIncident(alertData.activeIncidentId);
+    }
+  }, [alertData?.activeIncidentId, setAndPersistActiveIncident]);
+
+  // When the Simulator fires a full demo-reset, clear any stale active incident
+  // so the volunteer view snaps back to the alert list without needing a page refresh.
+  useEffect(() => {
+    const handleReset = () => {
+      setAndPersistActiveIncident(null);
+      reloadAlerts();
+    };
+    window.addEventListener('safecircle:demo-reset', handleReset);
+    return () => window.removeEventListener('safecircle:demo-reset', handleReset);
+  }, [setAndPersistActiveIncident, reloadAlerts]);
 
   /**
    * The push channel. This is a genuine delivery path, not a simulation - but it
@@ -133,7 +204,7 @@ function VolunteerHome({ onSignOut }: { onSignOut: () => void }): ReactNode {
       <Mission
         incidentId={activeIncident}
         onDone={() => {
-          setActiveIncident(null);
+          setAndPersistActiveIncident(null);
           reloadAlerts();
         }}
       />
@@ -154,12 +225,61 @@ function VolunteerHome({ onSignOut }: { onSignOut: () => void }): ReactNode {
         </div>
       )}
 
+      {me && (
+        <div
+          className="card"
+          style={{
+            background: 'linear-gradient(135deg, var(--navy) 0%, var(--navy-deep) 100%)',
+            color: '#fff',
+            borderRadius: 'var(--radius-lg)',
+            padding: '1.25rem 1.5rem',
+            marginBottom: '1rem',
+            position: 'relative',
+            overflow: 'hidden',
+            boxShadow: '0 4px 20px rgba(10, 30, 61, 0.25)',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+            <div>
+              <div style={{ fontSize: '0.72rem', letterSpacing: '0.08em', fontWeight: 700, color: 'var(--teal-light)' }}>
+                VOLUNTEER RESPONDER
+              </div>
+              <h2 style={{ margin: '0.2rem 0', fontFamily: 'var(--font-head)', fontSize: '1.5rem', color: '#fff' }}>
+                {me.name}
+              </h2>
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginTop: '0.35rem', flexWrap: 'wrap' }}>
+                <span className="badge verified" style={{ fontSize: '0.75rem' }}>{me.badge}</span>
+                {me.skill && <span className="badge" style={{ fontSize: '0.75rem' }}>{me.skill}</span>}
+              </div>
+            </div>
+            <div>
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  padding: '0.35rem 0.85rem',
+                  borderRadius: '20px',
+                  background: me.availabilityMode === 'off' ? 'rgba(255,255,255,0.1)' : 'rgba(42, 157, 92, 0.25)',
+                  border: `1px solid ${me.availabilityMode === 'off' ? 'rgba(255,255,255,0.2)' : 'rgba(42, 157, 92, 0.5)'}`,
+                  fontSize: '0.78rem',
+                  fontWeight: 700,
+                }}
+              >
+                <span style={{ color: me.availabilityMode === 'off' ? '#aaa' : '#4ade80' }}>●</span>
+                {me.availabilityMode === 'off' ? 'Offline' : 'Ready for duty'}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* A Tier 1 alert takes over the screen: a siren you cannot miss. */}
       {tier1 && (
         <AlertCard
           alert={tier1}
           onResponded={(accepted) => {
-            if (accepted) setActiveIncident(tier1.incidentId);
+            if (accepted) setAndPersistActiveIncident(tier1.incidentId);
             else reloadAlerts();
           }}
         />
@@ -172,7 +292,7 @@ function VolunteerHome({ onSignOut }: { onSignOut: () => void }): ReactNode {
             key={a.incidentId}
             alert={a}
             onResponded={(accepted) => {
-              if (accepted) setActiveIncident(a.incidentId);
+              if (accepted) setAndPersistActiveIncident(a.incidentId);
               else reloadAlerts();
             }}
           />
@@ -187,6 +307,46 @@ function VolunteerHome({ onSignOut }: { onSignOut: () => void }): ReactNode {
 
       {me && <AvailabilityCard me={me} onChanged={() => void loadMe()} />}
       {me && <ProfileCard me={me} onSignOut={onSignOut} onChanged={() => void loadMe()} />}
+      {!me && Boolean(error) && (
+        <div style={{ marginTop: '1rem', textAlign: 'center' }}>
+          <button className="primary" onClick={onSignOut}>
+            Sign in again
+          </button>
+        </div>
+      )}
+
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          gap: '1.5rem',
+          marginTop: '1.75rem',
+          padding: '0.75rem 0',
+          flexWrap: 'wrap',
+          opacity: 0.75,
+        }}
+      >
+        {[
+          ['🛡️', '24/7 PROTECTION'],
+          ['📍', 'REAL-TIME LOCATION'],
+          ['🔒', 'PRIVATE & SECURE'],
+        ].map(([icon, label]) => (
+          <div key={label} style={{ textAlign: 'center', minWidth: '85px' }}>
+            <div style={{ fontSize: '1.2rem', marginBottom: '0.2rem' }}>{icon}</div>
+            <div
+              style={{
+                fontSize: '0.65rem',
+                fontWeight: 700,
+                letterSpacing: '0.07em',
+                fontFamily: 'var(--font-head)',
+                color: 'var(--muted)',
+              }}
+            >
+              {label}
+            </div>
+          </div>
+        ))}
+      </div>
     </main>
   );
 }
@@ -348,6 +508,21 @@ function Mission({ incidentId, onDone }: { incidentId: string; onDone: () => voi
   const [error, setError] = useState<unknown>(null);
   const [status, setStatus] = useState<string>('accepted');
   const [busy, setBusy] = useState(false);
+  const [dangerSent, setDangerSent] = useState(false);
+  const [dangerConfirm, setDangerConfirm] = useState(false);
+
+  const reportDanger = async () => {
+    setBusy(true);
+    try {
+      await api.post('/api/volunteer/danger', { incidentId }, 'volunteer');
+      setDangerSent(true);
+      setDangerConfirm(false);
+    } catch (err) {
+      setError(err);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   useEffect(() => {
     void (async () => {
@@ -355,10 +530,18 @@ function Mission({ incidentId, onDone }: { incidentId: string; onDone: () => voi
         setBriefing(await api.get<Briefing>(`/api/incidents/${incidentId}/briefing`, 'volunteer'));
         setCards(await api.get<FlashcardSetDto>(`/api/incidents/${incidentId}/flashcards`, 'volunteer'));
       } catch (err) {
+        // If the incident is closed or reset (403 briefing_not_authorised, or 404
+        // incident_closed) then the localStorage entry is stale.  Auto-dismiss so
+        // the volunteer lands back on the alert list immediately instead of being
+        // stuck on a broken Mission screen.
+        if (err instanceof ApiFailure && (err.status === 403 || err.status === 404)) {
+          onDone();
+          return;
+        }
         setError(err);
       }
     })();
-  }, [incidentId]);
+  }, [incidentId, onDone]);
 
   /** Live position while en route, which stops the moment they arrive (L4). */
   useEffect(() => {
@@ -561,6 +744,102 @@ function Mission({ incidentId, onDone }: { incidentId: string; onDone: () => voi
 
       {openCard && <CardPanel card={openCard} onClose={() => setOpenCard(null)} />}
 
+      {/* F23: "I'm in danger" — volunteer's own emergency trigger */}
+      <div
+        className="card"
+        style={{
+          border: '2px solid rgba(211, 47, 47, 0.45)',
+          background: dangerSent
+            ? 'linear-gradient(135deg, rgba(211, 47, 47, 0.15) 0%, rgba(143, 29, 33, 0.2) 100%)'
+            : 'linear-gradient(135deg, rgba(211, 47, 47, 0.05) 0%, rgba(143, 29, 33, 0.08) 100%)',
+          borderRadius: 'var(--radius-lg)',
+          boxShadow: dangerSent ? '0 0 20px rgba(211, 47, 47, 0.25)' : undefined,
+        }}
+      >
+        {dangerSent ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <span style={{ fontSize: '1.8rem' }}>🚨</span>
+            <div>
+              <strong style={{ color: 'var(--red)', fontSize: '1.05rem', display: 'block' }}>
+                Emergency SOS Broadcasted (P1)
+              </strong>
+              <span className="small" style={{ color: 'var(--ink)' }}>
+                Control room, co-responders, and emergency services (112) have been alerted to your position. Keep yourself safe.
+              </span>
+            </div>
+          </div>
+        ) : (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '0.75rem',
+            }}
+          >
+            <div>
+              <h3
+                style={{
+                  margin: 0,
+                  color: 'var(--red)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  fontSize: '1.05rem',
+                }}
+              >
+                <span>⚠️</span> Responder Safety
+              </h3>
+              <p className="small muted" style={{ margin: '0.2rem 0 0' }}>
+                Threat, violence, or feel unsafe on scene? Trigger your own emergency SOS.
+              </p>
+            </div>
+            {!dangerConfirm ? (
+              <button
+                className="danger"
+                disabled={busy}
+                onClick={() => setDangerConfirm(true)}
+                style={{
+                  fontWeight: 700,
+                  padding: '0.6rem 1.25rem',
+                  borderRadius: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                }}
+              >
+                🚨 I'm in danger
+              </button>
+            ) : (
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                <button
+                  className="danger"
+                  disabled={busy}
+                  onClick={() => void reportDanger()}
+                  style={{
+                    fontWeight: 800,
+                    padding: '0.6rem 1.25rem',
+                    borderRadius: '12px',
+                    boxShadow: '0 0 14px rgba(211, 47, 47, 0.6)',
+                  }}
+                >
+                  Confirm: Alert 112 & Desk
+                </button>
+                <button
+                  className="ghost"
+                  disabled={busy}
+                  onClick={() => setDangerConfirm(false)}
+                  style={{ borderRadius: '12px' }}
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       <div className="card">
         <h3>Status</h3>
         <div className="btnrow">
@@ -738,25 +1017,71 @@ function AvailabilityCard({ me, onChanged }: { me: Me; onChanged: () => void }):
     }
   };
 
+  const [showAcademy, setShowAcademy] = useState(false);
+
   return (
     <div className="card">
-      <h3>I am available</h3>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+        <h3 style={{ margin: 0 }}>Availability & Duty</h3>
+        <button
+          className="ghost tiny"
+          onClick={() => setShowAcademy(true)}
+          style={{ fontSize: '0.75rem', fontWeight: 600 }}
+        >
+          🎓 {me.tutorialComplete ? 'Review Academy' : 'Academy & Drill'}
+        </button>
+      </div>
+
       <ErrorNote error={error} />
+
       {!me.tutorialComplete && (
-        <div className="notice info">
-          Finish the short tutorial and a practice alert before going available.
-          <button
-            className="primary"
-            style={{ marginLeft: '0.5rem' }}
-            disabled={busy}
-            onClick={() => {
-              void api.post('/api/volunteer/tutorial/complete', {}, 'volunteer').then(onChanged);
-            }}
-          >
-            Mark tutorial complete
-          </button>
+        <div
+          className="notice info"
+          style={{
+            background: 'rgba(10, 30, 61, 0.08)',
+            border: '1px solid var(--border)',
+            borderRadius: 'var(--radius)',
+            padding: '0.85rem 1rem',
+            marginBottom: '1rem',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
+            <span style={{ fontSize: '1.2rem' }}>🎓</span>
+            <strong style={{ fontSize: '0.9rem' }}>Mandatory Academy & Practice Drill</strong>
+          </div>
+          <p style={{ margin: '0 0 0.6rem 0', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+            Complete the 6 core modules, score 80%+ on the safety check, and complete a live simulated alert before going available.
+          </p>
+          <div className="btnrow">
+            <button
+              className="primary"
+              onClick={() => setShowAcademy(true)}
+              style={{ fontWeight: 700 }}
+            >
+              Start Academy Modules (M1–M6)
+            </button>
+            <button
+              className="ghost tiny"
+              disabled={busy}
+              onClick={() => {
+                void api.post('/api/volunteer/tutorial/complete', {}, 'volunteer').then(onChanged);
+              }}
+            >
+              Fast Complete (Demo)
+            </button>
+          </div>
         </div>
       )}
+
+      {showAcademy && (
+        <TutorialAcademyModal
+          onClose={() => setShowAcademy(false)}
+          onCompleted={() => {
+            onChanged();
+          }}
+        />
+      )}
+
       <button
         className={on ? 'danger block big' : 'primary block big'}
         disabled={busy || !me.tutorialComplete}
@@ -765,6 +1090,7 @@ function AvailabilityCard({ me, onChanged }: { me: Me; onChanged: () => void }):
       >
         {on ? 'Available — tap to stop' : 'Go available'}
       </button>
+
       <div className="btnrow" style={{ marginTop: '0.5rem' }}>
         <button
           disabled={busy || !me.tutorialComplete}
@@ -776,6 +1102,7 @@ function AvailabilityCard({ me, onChanged }: { me: Me; onChanged: () => void }):
           Only when I'm at home
         </button>
       </div>
+
       <p className="hint">
         While available, SafeCircle checks your approximate area about once an hour and your exact
         location only when someone near you needs help. Live tracking runs only after you accept, and
@@ -789,29 +1116,504 @@ function AvailabilityCard({ me, onChanged }: { me: Me; onChanged: () => void }):
   );
 }
 
+/** Academy modal for F28: M1-M6, Quiz with 80% pass mark, and practice drill alert. */
+function TutorialAcademyModal({
+  onClose,
+  onCompleted,
+}: {
+  onClose: () => void;
+  onCompleted: () => void;
+}): ReactNode {
+  const [activeTab, setActiveTab] = useState<number>(0);
+  const [completedModules, setCompletedModules] = useState<string[]>([]);
+  const [quizAnswers, setQuizAnswers] = useState<Record<string, number>>({});
+  const [quizScore, setQuizScore] = useState<number | null>(null);
+  const [quizError, setQuizError] = useState<string | null>(null);
+  const [drillLaunched, setDrillLaunched] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const res = await api.get<{
+          progress: { completedModules: string[]; scores: Record<string, number>; isComplete: boolean };
+        }>('/api/volunteer/tutorial/status', 'volunteer');
+        if (res.progress?.completedModules) {
+          setCompletedModules(res.progress.completedModules);
+        }
+      } catch {
+        /* ignore */
+      }
+    })();
+  }, []);
+
+  const markModuleDone = async (modId: string) => {
+    setBusy(true);
+    try {
+      await api.post(`/api/volunteer/tutorial/module/${modId}`, {}, 'volunteer');
+      setCompletedModules((prev) => Array.from(new Set([...prev, modId])));
+      if (activeTab < TUTORIAL_MODULES.length - 1) {
+        setActiveTab(activeTab + 1);
+      }
+      onCompleted();
+    } catch {
+      /* ignore */
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const submitQuiz = async () => {
+    setBusy(true);
+    setQuizError(null);
+    try {
+      const res = await api.post<{ ok: boolean; score: number; passed: boolean; allDone: boolean; message?: string }>(
+        '/api/volunteer/tutorial/module/m5_quiz',
+        { answers: quizAnswers },
+        'volunteer',
+      );
+      setQuizScore(res.score);
+      setCompletedModules((prev) => Array.from(new Set([...prev, 'm5_quiz'])));
+      if (activeTab < TUTORIAL_MODULES.length - 1) {
+        setActiveTab(activeTab + 1);
+      }
+      onCompleted();
+    } catch (err) {
+      if (err instanceof ApiFailure) {
+        setQuizError(err.error?.message ?? err.message ?? 'Quiz failed. 80% passing grade required.');
+      } else {
+        setQuizError('Quiz grading failed. Please review your answers.');
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const launchPracticeDrill = async () => {
+    setBusy(true);
+    try {
+      await api.post('/api/volunteer/tutorial/practice-alert', {}, 'volunteer');
+      setDrillLaunched(true);
+      onCompleted();
+      setTimeout(() => {
+        onClose();
+      }, 1200);
+    } catch {
+      /* ignore */
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const currentMod = (TUTORIAL_MODULES[activeTab] || TUTORIAL_MODULES[0])!;
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      style={{
+        position: 'fixed',
+        inset: 0,
+        backgroundColor: 'rgba(0,0,0,0.75)',
+        backdropFilter: 'blur(5px)',
+        zIndex: 1000,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '1rem',
+      }}
+    >
+      <div
+        className="card"
+        style={{
+          width: '100%',
+          maxWidth: '680px',
+          maxHeight: '90vh',
+          overflowY: 'auto',
+          background: 'var(--surface)',
+          borderRadius: 'var(--radius-lg)',
+          boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
+          padding: '1.75rem',
+          position: 'relative',
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+          <div>
+            <span style={{ fontSize: '0.72rem', letterSpacing: '0.08em', fontWeight: 700, color: 'var(--teal)' }}>
+              SAFECIRCLE ACADEMY
+            </span>
+            <h2 style={{ margin: '0.1rem 0', fontSize: '1.4rem' }}>Responder Certification</h2>
+          </div>
+          <button className="ghost tiny" onClick={onClose} style={{ fontSize: '1.2rem', padding: '0.2rem 0.6rem' }}>
+            ✕
+          </button>
+        </div>
+
+        {/* Progress pills */}
+        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '1.25rem' }}>
+          {TUTORIAL_MODULES.map((m, idx) => {
+            const isDone = completedModules.includes(m.id);
+            const isCurrent = idx === activeTab;
+            return (
+              <button
+                key={m.id}
+                onClick={() => setActiveTab(idx)}
+                style={{
+                  padding: '0.4rem 0.75rem',
+                  fontSize: '0.76rem',
+                  borderRadius: '20px',
+                  fontWeight: 600,
+                  border: isCurrent ? '2px solid var(--teal)' : '1px solid var(--border)',
+                  background: isDone ? 'rgba(42, 157, 92, 0.15)' : isCurrent ? 'var(--surface-hover)' : 'transparent',
+                  color: isDone ? '#2a9d5c' : isCurrent ? 'var(--teal)' : 'var(--text-muted)',
+                }}
+              >
+                {isDone ? '✓ ' : `${idx + 1}. `}{m.title.split(' ')[0]}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Module Content */}
+        <div style={{ minHeight: '260px', marginBottom: '1.25rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
+            <div>
+              <span className="badge" style={{ fontSize: '0.7rem' }}>MODULE {activeTab + 1} OF 6</span>
+              <h3 style={{ margin: '0.4rem 0 0.2rem 0', fontSize: '1.25rem' }}>{currentMod.title}</h3>
+              <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                {currentMod.subtitle}
+              </p>
+            </div>
+            <span style={{ fontSize: '0.75rem', opacity: 0.7, padding: '0.2rem 0.5rem', background: 'var(--bg-light)', borderRadius: '4px' }}>
+              ⏱ {currentMod.durationMinutes} min
+            </span>
+          </div>
+
+          <p style={{ margin: '1rem 0', fontSize: '0.9rem', lineHeight: 1.5 }}>
+            {currentMod.summary}
+          </p>
+
+          {/* M1 - M4: Takeaways */}
+          {activeTab < 4 && (
+            <div style={{ background: 'var(--bg-light)', padding: '1rem', borderRadius: 'var(--radius)', marginTop: '0.8rem' }}>
+              <div style={{ fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+                KEY TAKEAWAYS FOR SCENE ACTION:
+              </div>
+              <ul style={{ margin: 0, paddingLeft: '1.2rem', fontSize: '0.85rem', lineHeight: 1.6 }}>
+                {currentMod.takeaways.map((item, i) => (
+                  <li key={i} style={{ marginBottom: '0.35rem' }}>{item}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* M5: Quiz */}
+          {activeTab === 4 && (
+            <div style={{ marginTop: '1rem' }}>
+              {quizError && <div className="notice warn" style={{ marginBottom: '1rem' }}>{quizError}</div>}
+              {quizScore !== null && quizScore >= 80 && (
+                <div className="notice good" style={{ marginBottom: '1rem' }}>
+                  🎉 Passed! You scored {quizScore}%. Module 6 (Practice Alert Drill) is now unlocked!
+                </div>
+              )}
+              {QUIZ_QUESTIONS.map((q, qIndex) => (
+                <div key={q.id} style={{ marginBottom: '1.25rem', padding: '0.85rem', background: 'var(--bg-light)', borderRadius: 'var(--radius)' }}>
+                  <div style={{ fontWeight: 700, fontSize: '0.88rem', marginBottom: '0.6rem' }}>
+                    Q{qIndex + 1}: {q.question}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                    {q.options.map((opt, oIndex) => {
+                      const selected = quizAnswers[q.id] === oIndex;
+                      return (
+                        <label
+                          key={oIndex}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            padding: '0.45rem 0.65rem',
+                            borderRadius: 'var(--radius)',
+                            background: selected ? 'rgba(10, 30, 61, 0.1)' : 'transparent',
+                            border: `1px solid ${selected ? 'var(--teal)' : 'var(--border)'}`,
+                            cursor: 'pointer',
+                            fontSize: '0.82rem',
+                          }}
+                        >
+                          <input
+                            type="radio"
+                            name={`quiz-${q.id}`}
+                            checked={selected}
+                            onChange={() => setQuizAnswers({ ...quizAnswers, [q.id]: oIndex })}
+                            style={{ margin: 0 }}
+                          />
+                          {opt}
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* M6: Practice Drill */}
+          {activeTab === 5 && (
+            <div style={{ marginTop: '1rem' }}>
+              <div
+                style={{
+                  background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(220, 38, 38, 0.05) 100%)',
+                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  padding: '1.25rem',
+                  borderRadius: 'var(--radius-lg)',
+                  textAlign: 'center',
+                }}
+              >
+                <span style={{ fontSize: '2.5rem', display: 'block', marginBottom: '0.5rem' }}>🚨</span>
+                <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '1.15rem', color: 'var(--red-deep)' }}>
+                  Live Practice Alert Drill
+                </h4>
+                <p style={{ margin: '0 0 1rem 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                  Trigger a live practice alert to your screen. You will experience the full emergency alarm:
+                  audible siren, concentric pulsing rings, sliding to accept, medical briefing, and marking resolved.
+                </p>
+                {drillLaunched ? (
+                  <div className="notice good" style={{ fontWeight: 700 }}>
+                    ⚡ Drill alert dispatched! Returning to main alert screen...
+                  </div>
+                ) : (
+                  <button
+                    className="danger big"
+                    disabled={busy}
+                    onClick={() => void launchPracticeDrill()}
+                    style={{ fontWeight: 700, padding: '0.75rem 1.5rem', fontSize: '1rem' }}
+                  >
+                    🚨 Launch Practice Alert
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Modal footer navigation */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
+          <button
+            className="ghost"
+            disabled={activeTab === 0}
+            onClick={() => setActiveTab(activeTab - 1)}
+          >
+            ← Previous
+          </button>
+
+          {activeTab < 4 && (
+            <button
+              className="primary"
+              disabled={busy}
+              onClick={() => void markModuleDone(currentMod.id)}
+            >
+              Complete & Next →
+            </button>
+          )}
+
+          {activeTab === 4 && (
+            <button
+              className="primary"
+              disabled={busy || Object.keys(quizAnswers).length < QUIZ_QUESTIONS.length}
+              onClick={() => void submitQuiz()}
+            >
+              Submit Quiz Check
+            </button>
+          )}
+
+          {activeTab === 5 && (
+            <button className="ghost" onClick={onClose}>
+              Done
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Community Vouching and Verification Panel (F26). */
+function CommunityVouchingCard({
+  me,
+  onChanged,
+}: {
+  me: Me;
+  onChanged: () => void;
+}): ReactNode {
+  const [rounds, setRounds] = useState<Array<{
+    id: string; candidateId: string; candidateName: string; status: string; deadlineAt: string; vouchCount: number; concernCount: number;
+  }>>([]);
+  const [requested, setRequested] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<unknown>(null);
+
+  useEffect(() => {
+    if (me.trustLevel >= 2) {
+      void (async () => {
+        try {
+          const res = await api.get<{ rounds: typeof rounds }>('/api/volunteer/voting/rounds', 'volunteer');
+          setRounds(res.rounds ?? []);
+        } catch {
+          /* ignore */
+        }
+      })();
+    }
+  }, [me.trustLevel]);
+
+  const requestVerification = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await api.post('/api/volunteer/voting/request', {}, 'volunteer');
+      setRequested(true);
+      onChanged();
+    } catch (err) {
+      setError(err);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const vote = async (roundId: string, choice: 'vouch' | 'concern' | 'abstain') => {
+    setBusy(true);
+    setError(null);
+    try {
+      await api.post(`/api/volunteer/voting/rounds/${roundId}/vote`, { choice }, 'volunteer');
+      setRounds((prev) => prev.filter((r) => r.id !== roundId));
+      onChanged();
+    } catch (err) {
+      setError(err);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="card" style={{ marginTop: '1rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h3 style={{ margin: 0 }}>Community Verification (F26)</h3>
+        <span className={`chip ${me.trustLevel >= 2 ? 'verified' : 'unverified'}`}>
+          {me.badge} (L{me.trustLevel})
+        </span>
+      </div>
+
+      <ErrorNote error={error} />
+
+      {me.trustLevel < 2 ? (
+        <div style={{ marginTop: '0.8rem' }}>
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '0 0 0.8rem 0' }}>
+            Level 1: ID Checked. To become an L2 Verified Responder and qualify for Tier 1 closest alerts,
+            3 verified neighbours in your society must vouch for you without leaking personal records.
+          </p>
+          {requested ? (
+            <div className="notice good">
+              ✅ Verification round is open! Verified neighbours within 1 km have been invited to vouch for you.
+            </div>
+          ) : (
+            <button
+              className="primary"
+              disabled={busy}
+              onClick={() => void requestVerification()}
+            >
+              Request Community Vouching
+            </button>
+          )}
+        </div>
+      ) : (
+        <div style={{ marginTop: '0.8rem' }}>
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '0 0 0.8rem 0' }}>
+            As an L2 Verified volunteer, you participate in society peer-review to endorse new volunteer candidates.
+          </p>
+
+          {rounds.length === 0 ? (
+            <p className="tiny muted" style={{ fontStyle: 'italic', margin: 0 }}>
+              No pending neighbour verification ballots in your society right now.
+            </p>
+          ) : (
+            <div>
+              <div style={{ fontSize: '0.78rem', fontWeight: 700, marginBottom: '0.4rem', color: 'var(--teal)' }}>
+                PENDING NEIGHBOUR REVIEWS ({rounds.length})
+              </div>
+              {rounds.map((r) => (
+                <div
+                  key={r.id}
+                  style={{
+                    padding: '0.75rem',
+                    background: 'var(--bg-light)',
+                    borderRadius: 'var(--radius)',
+                    marginBottom: '0.5rem',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                    <strong>{r.candidateName}</strong>
+                    <span className="tiny muted">{r.vouchCount} / 3 vouches</span>
+                  </div>
+                  <div className="btnrow">
+                    <button
+                      className="primary tiny"
+                      disabled={busy}
+                      onClick={() => void vote(r.id, 'vouch')}
+                    >
+                      👍 Vouch
+                    </button>
+                    <button
+                      className="ghost tiny"
+                      disabled={busy}
+                      onClick={() => void vote(r.id, 'abstain')}
+                    >
+                      ✋ Abstain
+                    </button>
+                    <button
+                      className="danger ghost tiny"
+                      disabled={busy}
+                      onClick={() => void vote(r.id, 'concern')}
+                    >
+                      ⚠️ Concern
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ProfileCard({
   me,
   onSignOut,
+  onChanged,
 }: {
   me: Me;
   onSignOut: () => void;
   onChanged: () => void;
 }): ReactNode {
   return (
-    <div className="card">
-      <h3>{me.name}</h3>
-      <div className="btnrow">
-        <span className={`chip ${me.trustLevel >= 2 ? 'verified' : 'unverified'}`}>{me.badge}</span>
-        {me.skill && <span className="chip ok">{me.skill}</span>}
+    <>
+      <div className="card">
+        <h3>{me.name}</h3>
+        <div className="btnrow">
+          <span className={`chip ${me.trustLevel >= 2 ? 'verified' : 'unverified'}`}>{me.badge}</span>
+          {me.skill && <span className="chip ok">{me.skill}</span>}
+        </div>
+        <p className="small muted" style={{ marginTop: '0.5rem' }}>
+          {me.eligibleForTier1
+            ? 'You are eligible for Tier 1 "you are closest" alarms.'
+            : 'Tier 2 only until you are verified. You can never be the only responder for a child or a person with a cognitive disability.'}
+        </p>
+        <button className="ghost" onClick={onSignOut}>
+          Sign out
+        </button>
       </div>
-      <p className="small muted" style={{ marginTop: '0.5rem' }}>
-        {me.eligibleForTier1
-          ? 'You are eligible for Tier 1 "you are closest" alarms.'
-          : 'Tier 2 only until you are verified. You can never be the only responder for a child or a person with a cognitive disability.'}
-      </p>
-      <button className="ghost" onClick={onSignOut}>
-        Sign out
-      </button>
-    </div>
+
+      <CommunityVouchingCard me={me} onChanged={onChanged} />
+    </>
   );
 }
+

@@ -10,7 +10,7 @@
     "migrate": "tsc -b && node --env-file-if-exists=../../.env dist/db/migrate.js",
     "reset": "tsc -b && node --env-file-if-exists=../../.env dist/db/migrate.js --reset",
     "seed": "tsc -b && node --env-file-if-exists=../../.env dist/seed/seed.js",
-    "test": "tsc -b && tsc -p tsconfig.test.json && NODE_ENV=test node --test --test-concurrency=1 dist-test/test/*.test.js"
+    "test": "tsc -b && tsc -p tsconfig.test.json && node --import \"data:text/javascript,process.env.NODE_ENV='test';\" --test --test-concurrency=1 dist-test/test/*.test.js"
   },
   "dependencies": {
     "@safecircle/shared": "*",

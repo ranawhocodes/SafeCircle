@@ -227,4 +227,5 @@ export async function flagStaleIncidents(now = new Date()) {
     }
     return flagged;
 }
+export { checkDeviceHealthAlerts } from '../services/deviceHealth.js';
 //# sourceMappingURL=runner.js.map

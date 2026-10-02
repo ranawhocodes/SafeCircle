@@ -211,6 +211,7 @@ export function SignInPanel({
   const request = async (): Promise<void> => {
     setBusy(true);
     setError(null);
+    setCode('');
     try {
       const res = await signIn(phone, role);
       setSent(true);
@@ -278,7 +279,10 @@ export function SignInPanel({
             <button className="primary" onClick={() => void confirm()} disabled={busy || !code}>
               Sign in
             </button>
-            <button className="ghost" onClick={() => setSent(false)} disabled={busy}>
+            <button className="ghost" onClick={() => void request()} disabled={busy}>
+              Resend code
+            </button>
+            <button className="ghost" onClick={() => { setSent(false); setCode(''); setError(null); }} disabled={busy}>
               Change number
             </button>
           </>

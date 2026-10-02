@@ -5,6 +5,7 @@ import { appendEvent, closeIncident, findIncident, listDispatches, listEvents, l
 import { findPerson } from '../db/repositories/people.js';
 import { badgeFor, findVolunteer, primarySkillLabel } from '../db/repositories/volunteers.js';
 import { applyVerificationOutcome } from '../domain/cancel.js';
+import { applyCheckInAnswer } from '../domain/checkIn.js';
 import { buildHandoffPacket } from '../domain/escalation.js';
 import { currentLocation } from '../services/location.js';
 import { simulatedCapabilities } from '../providers/index.js';
@@ -135,6 +136,22 @@ export async function dashboardRoutes(app) {
         }
         return reply.send({ ...result, simulated: true });
     });
+    /**
+     * F15: Drive the simulated start-of-alert check-in IVR.
+     * Options: medical, fall, danger, mistake, no_answer.
+     */
+    app.post('/api/dashboard/incidents/:id/check-in-outcome', async (req, reply) => {
+        const session = await requireSession(req, reply, ['dashboard']);
+        if (!session)
+            return;
+        const result = await applyCheckInAnswer(req.params.id, req.body.answer);
+        if (!result.ok) {
+            return reply
+                .code(400)
+                .send({ error: { code: result.reason, message: 'Could not apply check-in answer.' } });
+        }
+        return reply.send({ ...result, simulated: true });
+    });
     /** The 112 packet, always labelled. */
     app.get('/api/dashboard/incidents/:id/handoff-112', async (req, reply) => {
         const session = await requireSession(req, reply, ['dashboard', 'guard']);
@@ -234,6 +251,39 @@ export async function dashboardRoutes(app) {
             dispatchLocationAccuracyTargetM: 30,
             devicesSilentOver24h: silentDevices?.n ?? 0,
             note: 'Targets are the proposals in master document section 23.3, not achieved results.',
+        });
+    });
+    /** Get guard duty statuses. */
+    app.get('/api/dashboard/guards', async (req, reply) => {
+        const session = await requireSession(req, reply, ['dashboard', 'guard']);
+        if (!session)
+            return;
+        const rows = await query('SELECT id, name, phone, on_duty, society_id FROM guards ORDER BY order_index ASC');
+        return reply.send({
+            guards: rows.map((r) => ({
+                id: r.id,
+                name: r.name,
+                phone: r.phone,
+                onDuty: r.on_duty,
+                societyId: r.society_id,
+            })),
+        });
+    });
+    /**
+     * Guard shift toggle: Guard can toggle on/off duty from the dashboard (Gap #4).
+     */
+    app.post('/api/dashboard/shift', async (req, reply) => {
+        const session = await requireSession(req, reply, ['dashboard', 'guard']);
+        if (!session)
+            return;
+        const targetId = req.body?.guardId || (session.subjectType === 'guard' ? session.subjectId : 'grd_ravi');
+        const rows = await query('UPDATE guards SET on_duty = $2 WHERE id = $1 RETURNING id, name, on_duty', [targetId, Boolean(req.body?.onDuty)]);
+        if (rows.length === 0) {
+            return reply.code(404).send({ error: { code: 'not_found', message: 'Guard not found.' } });
+        }
+        return reply.send({
+            ok: true,
+            guard: { id: rows[0].id, name: rows[0].name, onDuty: rows[0].on_duty },
         });
     });
 }

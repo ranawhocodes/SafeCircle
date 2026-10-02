@@ -52,6 +52,19 @@ test('FR-FDB-4 discreet: vibration only, so nothing can be seen or heard', () =>
   assert.equal(allowsCallToPerson('discreet'), false);
 });
 
+test('F6 silent SOS: silentRequested forces discreet transform even on standard or loud profiles', () => {
+  for (const stage of STAGES) {
+    const pStandard = patternFor(stage, 'standard', { silentRequested: true });
+    const pLoud = patternFor(stage, 'loud', { silentRequested: true });
+    const pDiscreet = patternFor(stage, 'discreet');
+
+    assert.equal(pStandard.sound.tone, 'none', `${stage} standard must have no sound`);
+    assert.equal(pStandard.light.colour, 'none', `${stage} standard must show no light`);
+    assert.deepEqual(pStandard, pDiscreet, `${stage} standard should match discreet`);
+    assert.deepEqual(pLoud, pDiscreet, `${stage} loud should match discreet`);
+  }
+});
+
 test('calm never beeps and never blinks fast, for autism, dementia and anxiety', () => {
   for (const p of allPatternsFor('calm')) {
     assert.ok(!['short_beep', 'triple_beep', 'rising_ticks'].includes(p.sound.tone), p.stage);

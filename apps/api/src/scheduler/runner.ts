@@ -251,3 +251,5 @@ export async function flagStaleIncidents(now = new Date()): Promise<string[]> {
   }
   return flagged;
 }
+
+export { checkDeviceHealthAlerts } from '../services/deviceHealth.js';

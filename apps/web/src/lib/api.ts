@@ -72,6 +72,14 @@ async function request<T>(
   const json = text ? (JSON.parse(text) as unknown) : null;
 
   if (!res.ok) {
+    if (res.status === 401 && opts.role) {
+      clearToken(opts.role);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('safecircle:unauthorized', { detail: { role: opts.role } }),
+        );
+      }
+    }
     const err = (json as { error?: ApiError } | null)?.error ?? {
       code: 'unknown',
       message: `Request failed (${res.status}).`,

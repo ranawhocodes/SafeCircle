@@ -92,6 +92,9 @@ export async function mergeFlags(incidentId, flags, client = pool) {
 export async function setSeverity(incidentId, severity, client = pool) {
     await client.query('UPDATE incidents SET severity = $2 WHERE id = $1', [incidentId, severity]);
 }
+export async function setCaseType(incidentId, caseType, client = pool) {
+    await client.query('UPDATE incidents SET case_type = $2 WHERE id = $1', [incidentId, caseType]);
+}
 export async function markEscalated(incidentId, client = pool) {
     // `escalated` is a flag, not a state: telling 112 stops nothing else.
     await client.query(`UPDATE incidents SET escalated_at = COALESCE(escalated_at, now()),
@@ -233,5 +236,16 @@ export async function listOpenIncidents(limit = 50) {
 export async function listRecentIncidents(limit = 50) {
     const rows = await query('SELECT * FROM incidents ORDER BY opened_at DESC LIMIT $1', [limit]);
     return rows.map(toRecord);
+}
+export async function findActiveIncidentForVolunteer(volunteerId) {
+    const row = await one(`SELECT d.incident_id
+     FROM dispatches d
+     JOIN incidents i ON i.id = d.incident_id
+     WHERE d.volunteer_id = $1
+       AND d.response = 'accepted'
+       AND i.closed_at IS NULL
+     ORDER BY i.opened_at DESC
+     LIMIT 1`, [volunteerId]);
+    return row?.incident_id ?? null;
 }
 //# sourceMappingURL=incidents.js.map
