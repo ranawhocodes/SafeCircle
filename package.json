@@ -1,0 +1,29 @@
+{
+  "name": "safecircle",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Neighbourhood safety network for people who cannot use a smartphone",
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*",
+    "tools/*"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "npm run build -ws --if-present",
+    "typecheck": "tsc -b packages/shared apps/api tools/sim",
+    "test": "npm run test -w @safecircle/shared && npm run test -w @safecircle/api",
+    "test:shared": "npm run test -w @safecircle/shared",
+    "test:api": "npm run test -w @safecircle/api",
+    "db:migrate": "npm run migrate -w @safecircle/api",
+    "db:reset": "npm run reset -w @safecircle/api",
+    "db:seed": "npm run seed -w @safecircle/api",
+    "dev": "npm run dev -w @safecircle/api",
+    "dev:web": "npm run dev -w @safecircle/web",
+    "sim": "npm run start -w @safecircle/sim",
+    "start": "npm run start -w @safecircle/api"
+  }
+}

@@ -1,0 +1,3149 @@
+
+
+===== PAGE 1 =====
+SafeCircle: Super Master Document (v2)
+ Oct 1, 2026  ·  @iCodejr
+0. How to use this document
+This is version 2 and the single source of truth for SafeCircle. It merges every line of v1
+with the new two-faced design: a phone-free person side (Face A) and a volunteer app
+(Face B).
+v2.1 update (1 Oct 2026): the button is now a family of two devices, a Wi-Fi Home button
+and a Go pendant with GPS and 4G, so the person can be found away from home. Section
+18 is rewritten as "Hardware and location"; Sections 1-10, 15-17 and 19-27 are updated to
+match.
+v2.2 update (1 Oct 2026): new Stealth mode for girls and women (Section 7.2). The button
+confirms each stage with light only, with no beeps and no calls to her phone, so people
+nearby cannot tell an alert was raised while help is on the way. Sections 5, 6, 7, 10, 16, 17, 21,
+25 and 26 are updated to match.
+To build a deck, paste or upload this doc and say: "Using this document, make an [N]-slide
+deck for [audience]. Focus on [sections]." A suggested deck outline is in Section 25.
+What changed from v1
+Area v1 v2
+Product shape Button and WhatsApp for the
+person; volunteer web app
+Two faces: Face A (button,
+WhatsApp/SMS, setup web portal)
+and Face B (native volunteer app)
+Cancel Press again inside a 3-5 s window Long-press cancel at any time, then
+a verification call. No answer means
+the alert is real
+Button
+feedback
+Sending, sent, help coming Full pattern table: sending,
+received, accepted, arriving,
+arrived, escalated, failed, verifying,
+plus a discreet mode
+Alerting Volunteers within about 500 m,
+first to accept
+Tiered: nearest 3 verified get high
+priority, everyone else a normal
+alert, all upgraded at 30 s
+SafeCircle: Super Master Document (v2)
+Page 1 of 73
+
+===== PAGE 2 =====
+Labels used
+(est.) an estimate from memory. Re-check before presenting as fact.
+Roadmap not part of the prototype. Never present it as working.
+Verify checked against public sources on 1 Oct 2026, but rules change. Re-check
+before building or quoting.
+Decision needed listed again in Section 26.
+The cyclone-detection deck used in v1 was a style reference only. Do not reuse its logos or
+branding.
+1. Project snapshot and the problem
+SafeCircle is a neighbourhood safety network that works even when the person in trouble
+cannot use a smartphone. It is the "first five minutes" layer that extends 112, not a
+replacement for it.
+Theme: Connected Communities. Working name: SafeCircle (placeholder; not checked
+for existing use or trademarks).
+Area v1 v2
+Volunteer
+location
+Registered address, fresh reading
+on accept
+Four battery-aware layers: zone,
+hourly refresh, wake-up push on
+alert, live tracking only while en
+route
+Trust Basic verification step Government ID, occupation, verified
+tag, society verifier and community
+vote
+Training Optional course Mandatory app tutorial plus an
+emergency tutorial library
+Responder aid First-aid cards Smart flashcards ranked from the
+person's profile and history, tap to
+confirm
+Scenarios Demo stories A playbook of real-world scenarios
+and edge cases (Section 16)
+Locating the
+person
+Registered address; outdoors
+only by asking for a WhatsApp
+location
+Go pendant with GPS, Wi-Fi scan,
+cell and 4G: best location within
+seconds, then live updates during
+the alert (Section 18)
+SafeCircle: Super Master Document (v2)
+Page 2 of 73
+
+===== PAGE 3 =====
+Problem statement (as given):
+Accelerating Emergency Response and Enhancing Safety Accessibility Across
+Communities. During critical safety incidents and localized emergencies, residents in
+residential neighborhoods and public spaces face severe friction in initiating timely
+calls for help and obtaining actionable situational updates. Traditional reporting
+channels are often fragmented, causing delays in dispatching local authorities,
+coordinating nearby volunteers, and providing clear status updates to those
+affected. The issue is further exacerbated for vulnerable demographics, such as
+children, senior citizens, and individuals with physical or cognitive disabilities, who
+may find navigating complex smartphone applications difficult or impossible during
+high-stress scenarios. When an emergency strikes, relying exclusively on app-based
+reporting excludes these groups from receiving rapid, accessible assistance.
+The idea in one paragraph: a child, senior or person with a disability presses one physical
+button, or a family member sends "HELP" on WhatsApp. Within seconds the system
+knows who they are and where they are: the registered address at home, or the Go
+pendant's GPS outside. It alerts the nearest verified volunteers, the society guard and the
+family at the same time, and escalates to 112 if nobody responds. The button tells the
+person, by light, sound and vibration, that help is coming. Volunteers arrive already
+knowing who they are helping and how.
+One-line pitch: "112 gets the police there. We make sure the person is never alone, and
+never phone-dependent, in the minutes before they arrive."
+Deck line: "No app for victims. A responder app for volunteers."
+The broken chain the PS describes
+Link Where it breaks today SafeCircle fix
+1. Trigger Too many steps for a person in
+panic, pain or confusion
+One press, or one WhatsApp word,
+from a registered number
+2. Routing Police, ambulance, guard and
+neighbours are reached separately
+One incident fans out to everyone
+in parallel
+3.
+Coordination
+Nearby people who could arrive
+first are never asked
+Tiered, geofenced volunteer alerts
+with an accept timer
+4. Feedback Person and family hear nothing Status on the button itself and live
+updates to family
+SafeCircle: Super Master Document (v2)
+Page 3 of 73
+
+===== PAGE 4 =====
+Hidden requirement: the last paragraph of the PS. An app-only answer fails it by
+definition, so at least one non-app, low-effort trigger is mandatory.
+Success criteria used throughout
+C1 Faster initiation of help
+C2 Unified reporting and dispatch to authorities
+C3 Coordinating nearby volunteers
+C4 Clear status updates to those affected
+C5 Accessible to children, seniors and people with disabilities without depending on
+an app
+A strong answer needs more than one way to raise an alarm, one backend, a volunteer
+layer, a status loop back to the person, accessibility by design, and realistic handling of
+false alarms, privacy and poor connectivity.
+2. The two-faced solution at a glance
+SafeCircle has two faces joined by one backend. Face A serves the person in trouble and
+their family with no app at all; Face B is an app for the people who respond.
+two faces, one backend · 10 parts
+SafeCircle: Super Master Document (v2)
+Page 4 of 73
+
+===== PAGE 5 =====
+Face A only sends alarms and receives status. Every decision about who to alert is made
+in the backend, and Face B receives alerts and sends back replies.
+2.1 Actors
+Face A: person and caregiver Face B: responders
+Who Child, senior or person with a
+disability; their family or caregiver
+Volunteers (verified and unverified),
+society guards
+Tools Home button (Wi-Fi) and Go pendant
+(GPS, 4G), WhatsApp/SMS, bystander
+QR, setup web portal, family status
+page
+Native volunteer app (web app for
+the demo), guard role, dashboard
+Main jobs Raise an alarm in one action; feel that
+help is coming; set up the profile once
+Get the right alert, decide in
+seconds, reach the person, help well
+Never
+needs
+A smartphone app, reading, speaking
+or hearing
+Constant GPS (battery-aware
+location)
+Sections 4, 5, 6, 7 9, 10, 11, 12, 13, 14
+Actor Role Sees
+The person Presses the button or sends
+"HELP"
+Light, sound and vibration on the
+button; WhatsApp replies
+Caregiver or family Sets up the profile; can trigger,
+confirm or follow an alert
+Live status page; verification
+messages
+Verified volunteer Tier 1 responder; votes on new
+members
+Category and distance first; full
+briefing after accepting
+Unverified volunteer Tier 2 responder with limits The same, but never sole
+responder for protected profiles
+Society guard On-site responder; opens gates;
+in-person checks
+Full address and access notes
+immediately
+Society verifier or
+RWA admin
+Approves local volunteers; bulk
+onboarding
+Volunteer cards for approval;
+monthly report
+Authority (112,
+police)
+Takes over when needed Dashboard and handoff packet
+SafeCircle: Super Master Document (v2)
+Page 5 of 73
+
+===== PAGE 6 =====
+2.2 End-to-end flow
+1. Setup (once): caregiver pairs the button, fills the profile and runs a drill (Section 5).
+2. Trigger: hold the button, send "HELP", or a stranger scans the pendant QR (Section 4).
+3. Identify and score: the backend finds the person, locates them (registered address, or
+GPS and Wi-Fi from the pendant), merges duplicates and sets severity (Section 8).
+4. Alert in tiers: 3 nearest verified volunteers get a high-priority alarm, everyone else a
+normal alert, guard and family at the same time; all upgraded at 30 s; 112 at 90 s or at
+once for P1 (Section 9).
+5. Accept and go: fresh location, full briefing, smart flashcards, live status taps (Sections
+10, 11, 14).
+6. Feedback: the button shows each stage; the family page updates (Sections 7, 15).
+7. Cancel path: a long-press cancel triggers a verification call; no answer keeps the alert
+alive (Section 6).
+8. Close and learn: outcome logged, profile history updated, volunteer wellbeing check
+(Sections 8, 10).
+2.3 Core differentiators
+1. Phone-free trigger for people who cannot use an app, at home or outside (GPS
+pendant).
+2. Tiered, verified-first alerting that reaches everyone at once but wakes the closest
+trusted people hardest.
+3. Cancel with verification: a forced cancel does not end help.
+4. Status the person can feel: light, sound and vibration for each stage.
+5. Profile-aware dispatch and smart flashcards: responders know who they are helping
+and what they will probably find.
+6. Community-vouched trust: neighbours who know a volunteer approve them.
+7. Battery-aware responder location: exact position only when someone nearby needs
+help.
+Actor Role Sees
+SafeCircle admin Reviews concerns, misconduct,
+content
+Audit logs and reports
+SafeCircle: Super Master Document (v2)
+Page 6 of 73
+
+===== PAGE 7 =====
+3. Research: existing systems, prior art and gaps
+India's 112 system already accepts IoT and external signals, and proven volunteer-alert
+apps abroad use the same model we propose. That makes SafeCircle a realistic "first five
+minutes" layer that can later plug into 112, not a fantasy.
+3.1 India: 112 / ERSS (national)
+The MHA ERSS page says ERSS-112 is state-run and receives distress signals over 10
+channels: voice call, SMS, SOS, email, web request, chatbot, media crawler, IoT-based
+signals, WhatsApp and external signals. Calls are passed to police, health, fire, disaster,
+women, children or railway dispatchers on GIS-based dispatch terminals.
+Coverage conflict from v1 resolved. A Rajya Sabha answer (Dec 2023) says ERSS is
+operational in all 36 states and UTs. The "24" figure is the ERSS 2.0 upgrade: 24 states
+and UTs, including Tamil Nadu and Puducherry, had moved to ERSS 2.0, with the rest
+expected by March 2026. Verify current ERSS 2.0 status before quoting.
+112 India app: a button sends an alert with location and calls 112 (112.gov.in). Its SHOUT
+feature enlists volunteers registered with the state police, aimed mainly at women
+(OneIndia).
+Phone triggers (from v1): dial 112; press the power button 3 times; long-press 5 or 9 on
+a feature phone.
+Why it matters for us: "IoT-based signals" and "external signals" are already listed
+channels. Real integration is still Roadmap and needs permission, but the door exists.
+3.2 Tamil Nadu and Chennai (from v1, not re-checked)
+Kavalan SOS (TN Police, June 2018): red SOS button, 5-second countdown, sends
+location and back-camera video to police; callback within about a minute; SMS to
+registered contacts. App-based and police-only.
+Kaaval Karangal (Greater Chennai Police, April 2021): helpline and rescue team for
+abandoned elderly people. A service you call, not a trigger.
+3.3 Prior art abroad: volunteer alert systems that work
+System What it does Lessons we copy
+GoodSAM (UK and
+others)
+Alerts verified responders
+near a suspected cardiac
+arrest; integrated with most
+UK ambulance dispatch
+systems
+Verifying organisations check
+ID and certificates;
+responders must switch on
+"Report on Duty"; SMS alerts
+where push is not possible
+SafeCircle: Super Master Document (v2)
+Page 7 of 73
+
+===== PAGE 8 =====
+GoodSAM's onboarding also asks new responders to read a code of conduct and run a
+simulation before their first alert (St John poster). Our mandatory tutorial (Section 13)
+follows the same idea.
+3.4 Gaps SafeCircle fills
+1. The trigger still needs a smartphone. 112 India, the power-button shortcut and Kavalan
+all assume a working phone in hand.
+2. Everything is police- or ambulance-centric. Guards, RWAs, neighbours and nearby
+doctors sit outside the loop.
+3. Volunteer layers are narrow. SHOUT targets women; GoodSAM targets cardiac arrest
+only.
+4. No status loop to the person. Nobody tells a frightened senior, by touch or light, that
+help is coming.
+5. No building-level coverage. Nothing links to society security, gates or flats.
+6. No profile-aware briefing. Every caller is treated the same.
+7. No cancel verification. No system we found checks whether a cancel was made under
+duress.
+System What it does Lessons we copy
+GoodSAM in Northern
+Ireland (NIAS FAQ)
+Alerts only within 500 m,
+responder walks; siren sound;
+accept or reject; alert
+disappears after 15 s
+Location accuracy slider: cell
+triangulation is described as
+under 1% battery, GPS as
+power hungry; GPS stops on
+arrival; "stand down"
+messages; mission log after
+each call; no alerts for assaults
+or overdoses; certificates
+expire and alerts stop
+GoodSAM in New
+Zealand (St John)
+1,000 m alert radius; shows
+nearest AEDs
+Larger radius where
+volunteers are sparse
+SMS Lifesavers,
+Stockholm (Karolinska)
+Randomised trial: about
+10,000 CPR-trained
+volunteers alerted by text
+within 500 m
+Bystander CPR before
+ambulance rose to 62% vs
+48% in the control group (CBS
+News). Hard evidence that
+geofenced volunteers arrive
+first
+SafeCircle: Super Master Document (v2)
+Page 8 of 73
+
+===== PAGE 9 =====
+3.5 Comparison (deck table)
+3.6 Still not researched
+Phone-maker features (Android Emergency SOS, Apple Emergency SOS) and paid family-
+safety apps exist. Check them before claiming nothing similar exists.
+4. Face A: how the person raises an alarm
+Face A gives the person five ways to call for help, and none of them needs an app. Every
+trigger becomes the same incident event in one backend (Section 8), so routing never
+depends on the channel.
+112 India / Kavalan GoodSAM SafeCircle
+Trigger Smartphone app or call 999 call or Alerter
+app
+Phone-free button,
+WhatsApp/SMS, caregiver,
+bystander QR
+Routing Control room to police,
+fire, health
+Ambulance
+dispatch to
+responders
+One incident to volunteers,
+guard, family and 112 in
+parallel
+Volunteers SHOUT, police-
+registered
+Verified, cardiac
+arrest only
+Verified and community-
+vouched, all emergency
+types, tiered by distance
+Feedback to
+person
+Callback, SMS to
+contacts
+None to patient Light, sound and vibration
+on the button; live family
+status
+Responder
+briefing
+Not found Location and
+AEDs
+Profile, handling notes,
+smart flashcards
+Cancel safety Countdown only n/a Long-press cancel plus
+verification call
+Locating the
+person
+Phone GPS, only if the
+person can use the
+phone
+Location given by
+the 999 caller
+Registered address at
+home; GPS, Wi-Fi scan and
+cell from the Go pendant
+outside
+SafeCircle: Super Master Document (v2)
+Page 9 of 73
+
+===== PAGE 10 =====
+T1. Physical button (hero feature)
+No screen, login or reading. A long press (about 2 s) starts the alert, so a brush does
+not.
+Two devices (Section 18): the Home button, Wi-Fi only, fixed at bed, bathroom or
+wheelchair height with a large palm or elbow surface; and the Go pendant, with GPS
+and 4G, worn as a pendant, wristband, bag tag or school-ID holder outside the home.
+Sends its device ID and event, plus a location from the Go pendant. Name, address and
+medical notes live on the server.
+Full behaviour (cancel, verification) is in Section 6; feedback patterns in Section 7;
+hardware in Section 18.
+T2. WhatsApp "HELP"
+Register first. A message carries only the sender's number, so the registry turns that
+number into a person, an address and a profile.
+# Trigger Who it suits Effort for the person Tier
+T1 Home button (wall,
+bedside) or Go
+pendant with GPS and
+4G
+Children, seniors,
+cognitive and physical
+disabilities
+One press Must
+T2 WhatsApp "HELP" (or
+any message) from a
+registered number
+Anyone with a basic
+smartphone
+One message, or one
+tap on a fridge QR
+that opens a
+prefilled chat
+Must
+T3 Caregiver trigger
+(WhatsApp, web link
+or call on behalf of a
+dependent)
+Severe cognitive
+disability; worried
+family
+One message Should
+T4 SMS keyword or
+missed call to a
+SafeCircle number
+Feature-phone users One SMS, or ring and
+hang up
+Roadmap
+T5 Bystander QR on the
+pendant (scan, tap
+"Alert family", share
+location)
+Lost child or
+wandering senior
+found by a stranger
+Done by the
+stranger
+Should
+SafeCircle: Super Master Document (v2)
+Page 10 of 73
+
+===== PAGE 11 =====
+The provider pushes each message to our webhook. The backend verifies the
+signature, normalises it to {source: "whatsapp", from: "+91...", text: "HELP"} ,
+looks up the number, then runs the same pipeline as the button.
+Location: the registered address by default. Outdoors, the reply carries a "Share
+location" request.
+Pricing (Verify): since 1 July 2025 Meta charges per template message. When a user
+messages us, a 24-hour customer service window opens; free-form replies and utility
+templates inside it are free (Meta pricing docs). Status replies to the person are
+therefore free. Alerts we start ourselves to volunteers or family outside a window need
+paid, pre-approved utility templates. This is one reason volunteers get a native app.
+Unregistered numbers still get help, as an unverified incident: auto-reply asking for
+location and one line of detail, alert to the security desk and dashboard, 112 escalation
+shown. A stranger's location is not auto-sent to volunteers (abuse risk; Decision
+needed).
+Abuse controls: "CANCEL" reply window (then the verification call in Section 6), merge
+repeat messages within a few minutes, per-number rate limit.
+T3. Caregiver trigger
+A caregiver's number is registered against one or more dependents. "HELP" from it raises
+an alarm for the dependent. With several dependents, the bot replies with a short list, or
+accepts "HELP Lakshmi". The incident is marked "raised by caregiver, location =
+dependent's address" so responders do not go to the caregiver's location.
+T4. SMS keyword and missed call (Roadmap)
+Inbound SMS in India needs an Indian virtual-number provider; v1 notes Twilio SMS to
+India is outbound-only (Verify).
+A missed-call number is a familiar Indian pattern and free for the caller: ring and hang
+up, the caller ID is matched against the registry. Same pipeline. Provider and cost not
+yet researched.
+T5. Bystander QR (new)
+A small QR on the back of the pendant opens a web page with no personal data on it: "This
+person may need help. Tap to alert their family." The stranger can share their phone's
+location and type a note. The family and nearest guard or volunteers get an alert with that
+location. It is the backup for lost children and wandering seniors when the pendant has no
+GPS fix or no battery, or when the person only has a Home button. It must never show the
+person's name, address or medical notes to the scanner.
+SafeCircle: Super Master Document (v2)
+Page 11 of 73
+
+===== PAGE 12 =====
+5. Face A: setup and onboarding web portal
+A caregiver, family member or society admin sets everything up once on a mobile web
+page; the person in need never touches it. The portal pairs the button, connects it to Wi-
+Fi, records the profile and runs a test, in about 10 minutes (est.).
+5.1 Onboarding steps
+1. Sign in with the caregiver's phone number and a one-time code.
+2. Add the person (profile fields in 5.2). One caregiver can manage several people; one
+person can have several caregivers.
+3. Pair the button. Scan the QR on the device box. It carries the device ID and a one-time
+claim code, so a stolen or second-hand button cannot be claimed by someone else. A
+Go pendant also has its SIM activated here.
+4. Connect the button to Wi-Fi. Two options, both browser-based:
+SoftAP captive portal: the button opens its own hotspot; the phone joins it and a
+setup page pops up. Works in any browser, including iPhone.
+Improv Wi-Fi over Bluetooth: an open standard that sends Wi-Fi credentials over
+BLE from a web page in Chrome or Edge, then redirects back to our portal to finish
+onboarding (Home Assistant). Not available in iPhone browsers, which lack Web
+Bluetooth.
+Demo: credentials hardcoded to the phone hotspot (from v1). Several networks can
+be saved and named (home, school, day centre); the one the button joins tells the
+system where it is.
+5. Add trigger numbers ( self , caregiver ), each confirmed by a one-time code.
+6. Add family contacts in call order, and choose who may cancel an alert on the person's
+behalf.
+7. Choose the feedback style for the button (Section 7): standard, loud, calm, discreet or
+stealth. For a Go pendant, also choose location sharing: during alerts and drills only
+(default), or opt-in safe-zone mode (Roadmap).
+8. Consent: the person (or guardian for a minor or a person lacking capacity) agrees to
+what is stored and who sees it.
+9. Run a drill. A test press goes through the whole chain marked drill : the button plays
+every pattern, the caregiver gets sample messages, and no volunteer is alerted.
+10. Print the kit: fridge QR (prefilled WhatsApp "HELP"), wallet card with the SafeCircle
+number, and the bystander QR sticker for the pendant.
+SafeCircle: Super Master Document (v2)
+Page 12 of 73
+
+===== PAGE 13 =====
+5.2 Profile fields
+Every field must change how someone responds. Anything that does not is left out (data
+minimisation).
+5.3 After setup
+Caregiver home page: button battery, last check-in, Wi-Fi, 4G and GPS status, incident
+history and a profile-completeness score.
+Group Fields Who sees it
+Identity Name, name they respond to,
+photo, age band, languages
+Accepted responder, guard
+Location Address, block and flat,
+landmark, pin on map, society,
+where the key is kept, known
+places (school, day centre) and
+their Wi-Fi networks
+Accepted responder, guard
+Access secrets Gate or door code, spare-key
+holder
+Accepted guard only,
+encrypted
+Health (optional) Conditions, medicines, allergies,
+blood group, mobility aids,
+regular doctor and hospital
+Accepted responder;
+summary to 112 handoff
+Communication and
+handling
+Hearing, vision and speech
+needs; calming steps; things to
+avoid ("do not touch", "no loud
+voices")
+Accepted responder
+Safety rules Child: who may collect; people
+who must never get information
+(custody or abuse cases);
+wandering history
+System rules plus accepted
+responder
+Responder preference
+(optional)
+For example a woman
+responder first
+Dispatch logic only
+Device Feedback style, volume,
+vibration strength, LED
+brightness
+Device and caregiver
+Consent Who consented, when, what for Audit only
+SafeCircle: Super Master Document (v2)
+Page 13 of 73
+
+===== PAGE 14 =====
+Health checks: heartbeat missing or battery low triggers a message to the caregiver
+(Section 8).
+Reminders: a monthly drill and a six-monthly profile review, because medicines and
+conditions change.
+Society bulk onboarding: the RWA or society admin can register many households and
+buttons from one sheet, then each family confirms its own details.
+6. Button behaviour: press, cancel and verification call
+A cancel never silently ends an alert. A long press cancels, the system then calls the
+person to confirm, and if nobody picks up the alert is treated as real and continues. This
+protects against the worst case: an attacker forcing the person to cancel.
+Only one of the three outcomes ends help. Silence, a wrong answer or the duress PIN
+keeps the alert alive.
+6.1 Press rules
+cancel and verification flow · 1 decision, 3 outcomes
+Action Gesture Result
+Raise SOS Hold about 2 s Incident created at once;
+dispatch starts with no waiting
+Request cancel Hold about 4 s (longer than the
+trigger, so the two cannot be
+confused)
+Incident moves to Cancel
+requested, verifying
+SafeCircle: Super Master Document (v2)
+Page 14 of 73
+
+===== PAGE 15 =====
+v1 used a 3-5 s countdown before sending. v2 sends immediately, because the cancel-and-
+verify path now handles mistakes. A pre-send countdown stays as a per-person option (0-
+5 s) for people who press by accident often. Decision needed.
+6.2 What happens after a cancel
+1. Within about 5 s the backend places an automated verification call (IVR) to the
+person's own registered phone. The caller ID shows SafeCircle.
+2. The call says, in the person's language: "Your SafeCircle alert was cancelled. Press 1 if
+you are safe. Press 9 if you still need help." An optional 4-digit safe PIN can be asked
+after pressing 1.
+3. Outcomes:
+Pressed 1 (and correct PIN if set): incident closed as false alarm. Everyone gets
+"Stand down, person confirmed safe". The family is told.
+Pressed 9, wrong PIN, or the duress PIN: the alert continues at high priority,
+flagged "possible duress". The button still shows the cancelled pattern so an
+attacker is not tipped off.
+No answer, busy or call rejected: one retry after about 10 s. Still nothing means the
+alert is real. It resumes with every volunteer at high priority (Section 9).
+4. The caregiver is told in parallel ("Lakshmi's alert was cancelled, we are checking"). A
+caregiver can confirm safety too, but for high-risk profiles a caregiver's "safe" does not
+stand down the guard's in-person check.
+While verifying: volunteers who already accepted keep going ("Cancel requested,
+verifying, continue unless stood down"). No new volunteers are added. The guard still
+checks the flat, and a Go pendant keeps sending its location silently. Decision by about 60
+s at most (est.).
+6.3 When a call cannot work
+Action Gesture Result
+Silent SOS (discreet
+profiles only)
+Triple short press Alert with no sound or light on
+the button; no call to the person
+Brush or tap Under 2 s Ignored
+Person Verification instead
+Child with no phone Call the parent; guard or nearest verified
+volunteer does a doorstep or on-site check
+SafeCircle: Super Master Document (v2)
+Page 15 of 73
+
+===== PAGE 16 =====
+6.4 Optional check-in call at the start
+For people with a phone and no discreet or stealth flag, the same IVR can call in parallel
+when an SOS starts: "Press 1 medical, 2 fall, 3 danger, 4 pressed by mistake." It never
+delays dispatch. No answer means nothing changes. "4" behaves like a cancel and goes
+through the verification above. The answer also seeds the volunteer flashcards (Section
+14).
+6.5 Provider
+An Indian cloud-telephony provider such as Exotel offers outbound calls into an IVR flow
+with DTMF key collection, status webhooks to our server, and a Mumbai data centre
+(Exotel Voice v1 docs). It also lists Truecaller verified-business caller names and built-in
+DLT compliance (Exotel services), which helps the person trust the call. Verify pricing and
+KYC lead time. Demo: simulate the call with a dashboard button, or use a provider trial
+account.
+7. Button feedback: what the person sees, hears and feels
+The button reports every stage of the response through three senses at once, so a blind
+user, a deaf user and a child can each follow it. Each stage has its own colour, sound and
+vibration count, so no single sense is required.
+7.1 Pattern table (standard profile)
+Person Verification instead
+Deaf or speech-impaired WhatsApp or SMS "Reply SAFE" plus the
+button's own confirm: the button asks with a
+vibration pattern, a double press means safe
+Dementia or cognitive disability A cancel from the person is never enough;
+caregiver confirms and the guard checks
+Violence or stalking risk (discreet or stealth
+profile)
+No call to the person at all (a ringing phone
+can endanger them); verification goes to the
+caregiver and responders continue
+Stage Light (RGB
+LED)
+Sound Vibration Meaning for the
+person
+Holding White ring fills
+over 2 s
+Rising ticks Light buzz "Keep holding"
+SafeCircle: Super Master Document (v2)
+Page 16 of 73
+
+===== PAGE 17 =====
+7.2 Feedback profiles (set in the portal)
+Stage Light (RGB
+LED)
+Sound Vibration Meaning for the
+person
+Sending Blue fast blink Short beep
+each second
+1 short "Sending your
+call for help"
+Received Blue solid 2 s,
+then slow blue
+pulse
+Two-tone
+chime
+1 long "We got it"
+Accepted Green slow
+pulse
+Three rising
+notes ("help is
+coming")
+2 short "Someone is on
+the way"
+Arriving
+(responder under
+about 100 m)
+Green fast
+pulse
+Same chime,
+faster
+3 short "They are almost
+here"
+Arrived Green solid One long soft
+tone
+1 long "Help is with you"
+Escalated to 112 Purple slow
+pulse
+Distinct two-
+note chime
+2 long "Police or
+ambulance are
+also coming"
+Still working
+(reassurance)
+Current colour
+brightens
+None 1 gentle buzz
+every 30-60
+s
+"Your alert is still
+active"
+Cancel requested
+or verifying
+One white
+flash, then off
+None None Deliberately
+quiet (Section 6)
+Failed after retries Red fast blink Triple beep Long-long-
+long
+"Not sent, still
+trying"
+Low battery (idle) Red blink
+every 30 s
+None None Caregiver is also
+told
+Profile For Changes
+Standard Most people As in 7.1
+Loud Seniors with hearing loss Maximum buzzer volume, strongest
+vibration, repeated chimes
+SafeCircle: Super Master Document (v2)
+Page 17 of 73
+
+===== PAGE 18 =====
+A voice prompt in Tamil, Hindi or English ("Help is coming, about 2 minutes away") is
+Roadmap. It needs a small speaker and audio module.
+7.3 How the button learns each stage
+A plain HTTP POST is one-way, so the button must stay in touch after a press:
+Demo: after a press, the button keeps Wi-Fi on and polls GET
+/api/device/{id}/status  every 3 s for 5 minutes, then every 15 s until the incident
+closes (timings est.).
+Better: MQTT. The button subscribes to its own topic and gets each stage pushed
+instantly.
+Each status carries a sequence number, so a late or repeated message never moves
+the button backwards. The Go pendant receives status over 4G, so feedback also
+works away from home.
+Polling or a live connection drains the battery. That is acceptable during an emergency;
+between emergencies the button sleeps and only wakes for a heartbeat (Section 18).
+8. Incident engine: severity, states, timers and escalation
+Every trigger becomes one incident with a severity, a state and a set of running timers.
+Severity decides whether 112 is told at once or only after volunteers fail to respond.
+Profile For Changes
+Calm Autism, dementia, anxiety Soft tones only, slow fades, no
+beeping; avoids sensory overload
+Child Children Bright friendly colours, gentle
+chime, nothing alarming
+Visual-first Deaf users Brighter LED, stronger vibration,
+sound optional
+Touch-and-
+sound
+Blind users Distinct vibration counts and tones;
+colour irrelevant
+Discreet Harassment, stalking, domestic risk Vibration only, no light or sound, no
+calls to the person
+Stealth Girls and women who may be in
+danger in public (harassment, being
+followed)
+Lights only: the light patterns from
+7.1 at low brightness, on the side
+facing her; no buzzer, no vibration,
+no calls to her phone; responders
+are told to arrive quietly
+SafeCircle: Super Master Document (v2)
+Page 18 of 73
+
+===== PAGE 19 =====
+8.1 Pipeline
+1. Receive an event from any channel (button, WhatsApp, SMS, missed call, caregiver
+link, bystander QR). Verify its signature or token.
+2. Normalise to {source, sender_or_device, type, timestamp} .
+3. Identify the person from the registry and locate them: registered address, known
+place, or the pendant's GPS, Wi-Fi scan or cell position, whichever is most accurate
+(Section 18). No match means an unverified incident (Section 4, T2).
+4. Merge duplicates: the same person within 10 minutes joins the open incident instead
+of creating a new one.
+5. Score severity (8.2).
+6. Dispatch in parallel: tiered volunteers (Section 9), guard, family, and 112 if P1.
+7. Track states and timers (8.3, 8.4) until a responder or the dashboard closes it.
+8.2 Severity levels
+Rules first; AI triage only suggests (Should tier).
+Level Typical inputs Dispatch
+P1 Critical Cardiac or seizure history with
+no answer to the check-in call;
+caregiver reports unconscious;
+check-in "3 danger"; possible
+duress after a cancel; a child or
+dementia profile whose
+pendant moves at vehicle
+speed (possible abduction;
+Decision needed)
+Volunteers all at high priority,
+guard, family, and 112/108 told
+at once (simulated in the
+demo)
+P2 Urgent (default for a
+button press)
+Any press or "HELP" from a
+registered person
+Tiered volunteers, guard and
+family; 112 if nobody accepts in
+90 s
+P3 Assist (Roadmap
+mode)
+A "need help, not an
+emergency" press, for example
+a senior stuck after a minor fall
+Volunteers and family; no
+automatic 112
+Unverified "HELP" from an unknown
+number
+Guard desk and dashboard;
+location requested; 112 shown
+SafeCircle: Super Master Document (v2)
+Page 19 of 73
+
+===== PAGE 20 =====
+8.3 Incident states
+An incident is never auto-closed while unresolved. A stale one is flagged on the
+dashboard instead.
+8.4 Timers (P2 default; all est., tune in the pilot)
+State Entered when Leaves to
+New Event identified Dispatching
+Dispatching Alerts sent Accepted, Escalated, Cancel
+verifying
+Accepted First responder accepts En route
+En route Responder taps "On my way" On scene
+On scene Responder taps "Arrived" or is
+within about 30 m
+Resolved, Handed to 112
+Cancel verifying Long-press cancel or "CANCEL" Closed as false alarm, or back to
+Dispatching at high priority
+Escalated (a flag, not
+an end)
+112 told Continues alongside the others
+Resolved / Closed Responder, guard or dashboard
+closes with an outcome
+Archive and follow-up
+Time Check Action if it fails
+0 s Alert sent Top 3 high priority, everyone else normal
+(Section 9)
+30 s Did any of the top 3 accept? Upgrade every alerted volunteer to high
+priority; widen the radius
+60 s Has the family opened the
+message?
+Automated call to the family, then the
+next contact
+90 s Has anyone accepted? Escalate to 112 (simulated); guard and
+society admin called
+Accept + 3 min Is the responder moving
+closer?
+Ask "Still coming?"; if no reply, re-open to
+others
+SafeCircle: Super Master Document (v2)
+Page 20 of 73
+
+===== PAGE 21 =====
+8.5 How many responders
+v1 locked the incident to the first volunteer. v2 allows a small team per case type, then
+tells the rest "covered, stand by":
+All numbers are proposals. Decision needed.
+9. Tiered geofenced alerting
+Everyone nearby is alerted at the same moment, but not equally. The 3 nearest verified
+volunteers get a high-priority "you are closest" alarm; everyone else gets a normal alert; if
+none of the 3 responds within 30 s, everyone is upgraded to high priority.
+Time Check Action if it fails
+On scene + 30
+min
+Any update? Check-in ping to responder and family
+Case Responders accepted Why
+Medical, collapse,
+possible cardiac arrest
+Up to 3 (one calls 112, one does
+CPR, one fetches an AED or
+guides the ambulance)
+Hands-only CPR is
+exhausting; two people can
+swap
+Fall or general medical 1 primary plus 1 backup Backup steps in if the primary
+is delayed
+Child or cognitive
+disability
+1 verified primary plus the
+guard
+Avoid crowding a frightened
+person
+Harassment or violence Up to 3, "observe and call"
+only
+Safety in numbers; never
+confront
+SafeCircle: Super Master Document (v2)
+Page 21 of 73
+
+===== PAGE 22 =====
+Both tiers, the guard and the family are alerted at second 0. At 30 s everyone is upgraded,
+at 60 s an unread family gets a call, and at 90 s 112 is told (Section 8.4).
+9.1 The tiers
+9.2 Rules that make it work
+Rolling top 3. When a Tier 1 volunteer taps Decline, the next nearest verified volunteer
+moves into Tier 1 straight away. GoodSAM does something similar: an unanswered alert
+disappears after 15 s and the next responder is tried (NIAS FAQ).
+Early upgrade. If all 3 decline before 30 s, upgrade everyone at once rather than
+waiting.
+first 90 seconds of an alert · 6 events
+Tier Who Alert style Message
+Tier 1, high
+priority
+The 3 nearest verified
+volunteers who are
+available
+Full-screen alarm, siren
+sound, repeats until
+answered
+"You are in close
+proximity. Help the
+person. Medical, senior,
+about 300 m."
+Tier 2,
+normal
+Every other available
+volunteer in the radius,
+verified or not
+Standard notification "Help needed nearby,
+about 900 m. Tap to
+view."
+Upgrade at
+30 s
+If no Tier 1 volunteer
+has accepted
+All Tier 2 alerts re-sent
+as high priority
+"Urgent: nearest
+helpers have not
+responded."
+SafeCircle: Super Master Document (v2)
+Page 22 of 73
+
+===== PAGE 23 =====
+Responding means Accept or Decline. Silence counts as no response. Decline asks for
+a one-tap reason (too far, busy, not safe, not trained) so dispatch learns.
+Enough is enough. Once the case has its responders (Section 8.5), everyone else gets
+"Covered, thank you, stay available".
+Sparse areas. If fewer than 3 verified volunteers are inside the radius, widen it in steps
+(for example 1.5 km, then 3 km, then 5 km; est.) and lean harder on the guard and family.
+Protected profiles. For a child, a person with a cognitive disability or a discreet case,
+an unverified volunteer can join only alongside a verified volunteer or the guard, never
+as the only responder. Decision needed.
+Fatigue and fairness. Cap alerts per volunteer per day, respect quiet hours unless the
+volunteer is on duty, and rotate among volunteers who are equally near.
+When the person moves (Go pendant). The search circle is centred on the latest location
+and widened by its accuracy radius. If the person moves more than about 200 m (est.),
+candidates are re-ranked, the new nearest volunteers are alerted, and responders see the
+new spot.
+9.3 Ranking: who is "nearest"
+Distance alone picks the wrong person when a nurse is 50 m further away than a student.
+The ranking uses an effective ETA:
+\text{score} = \text{ETA}_{\text{seconds}} - \text{skill bonus} - 
+\text{reliability bonus} + \text{language or preference penalty}
+ETA: from the volunteer's latest known position (Section 11) to the person's latest
+location (Section 18); walking speed under 1 km, two-wheeler above, if the volunteer
+said they ride one.
+Skill bonus: for example 60 s for a doctor or nurse on a medical case, 30 s for a certified
+first-aider (est.).
+Reliability bonus: small, from past accept and arrive rates.
+Preference penalty: if the profile asks for a woman responder first, or the volunteer
+does not share the person's language.
+Verified first: Tier 1 is taken only from verified volunteers. Unverified volunteers are
+ranked within Tier 2.
+The weights are guesses to be tuned with pilot data. Every dispatch decision is logged so
+it can be explained later.
+SafeCircle: Super Master Document (v2)
+Page 23 of 73
+
+===== PAGE 24 =====
+10. Face B: the volunteer app
+Volunteers sign up on purpose, own smartphones and can be trained once, so they get a
+native app built around one job: hear the alert, decide in seconds, get there safely, and
+help well. The "no app" rule applies only to the person in trouble.
+10.1 Screens and what each does
+Screen What it does
+Registration Identity, government ID, occupation and skills,
+certificates, address, consent (Section 12)
+Setup checklist Walks through every permission the alerts need
+(10.3) and ends with a test alert
+Tutorial Mandatory app walkthrough and simulation before
+the first real alert (Section 13)
+Home Big I am available toggle with modes (10.2), location
+freshness, trust badge, alerts answered
+Alert Tier 1: full-screen alarm. Tier 2: normal notification.
+Shows category icon, rough distance and ETA, age
+band, how many others are responding. Slide to
+accept (prevents pocket accepts) or Decline with a
+reason
+Safety check For harassment or violence: "Do not confront.
+Observe from a safe distance and call 112. Accept?"
+For a stealth alert, also: "Arrive quietly; do not
+mention SafeCircle or the alert out loud."
+Mission After accepting: map and directions to the
+person's live position with an accuracy circle
+(Section 18), full address, flat, landmark, gate
+notes, photo, handling banner, smart flashcards
+(Section 14). Roadmap: a Bluetooth warmer-colder
+finder and a make-it-beep button (off for discreet
+profiles)
+Status bar On my way, Arrived (suggested automatically near
+the spot), Need backup, Handed to ambulance,
+Resolved with outcome, Can't attend
+SafeCircle: Super Master Document (v2)
+Page 24 of 73
+
+===== PAGE 25 =====
+10.2 The "I am available" toggle
+Screen What it does
+Contact One tap to call family, guard or 112. Calls go through
+number masking so neither side sees the other's
+personal number
+Responder chat Short group thread with other responders and the
+guard for this incident only; deleted after closure
+I'm in danger A volunteer's own SOS: alerts the guard, other
+responders and 112 with the volunteer's live
+location
+After the call Mission log, a wellbeing check ("That was a hard
+call, want to talk to someone?"), thanks from the
+family
+Learn Tutorial library, offline flashcards, CPR metronome
+practice, refresher quizzes
+Profile Skills, certificate expiry, verification level, pending
+community votes (Section 12), data download and
+delete
+Settings Max distance willing to travel, walk or two-wheeler,
+case types opted out of, languages, quiet hours,
+battery mode
+Mode Meaning Location behaviour (Section 11)
+Off No alerts None
+Available now Alerts until switched off Low-power zone tracking plus
+wake-up on alert
+Available until a
+time
+For example "until 10 pm" Same, auto-off at the time
+Duty windows Repeating schedule, for example
+weekday evenings
+Active only inside windows
+Home only Alert me only when I am at home No tracking at all: the registered
+home address is used while the
+phone sees home Wi-Fi
+SafeCircle: Super Master Document (v2)
+Page 25 of 73
+
+===== PAGE 26 =====
+The app shows a plain line under the toggle: "While available, SafeCircle checks your
+approximate area about once an hour and your exact location only when someone near
+you needs help."
+10.3 Setup checklist (permissions)
+Notifications on, with the SafeCircle alarm channel set to sound.
+Full-screen alerts (Android 14+). Only calling and alarm apps get this by default;
+others must ask the user (Google Play policy). The app asks during setup.
+Critical Alerts (iPhone). Breaking through silent mode needs a special Apple
+entitlement approved only for urgent personal health and public safety alerts (Apple
+forums). Apply for it; fall back to time-sensitive notifications if refused. Verify.
+Location "Allow all the time", explained honestly (Section 11).
+Battery optimisation off for SafeCircle. Many phone brands popular in India stop
+background apps aggressively; the app shows brand-specific steps.
+Test alert to prove it works on this phone before going available.
+10.4 Guards use the same app
+Guards get a "guard" role: shift on and off instead of availability, the full flat number and
+access notes immediately (trusted role), and gate tasks ("open gate for ambulance"). A
+guard desk can also run the web dashboard with a loud alarm (Section 15).
+10.5 Build path
+Mode Meaning Location behaviour (Section 11)
+Auto-pause Turns off below a set battery level
+(for example 15%) or while driving
+Stops all location use
+Stage Build Why
+Hackathon
+demo
+Web app (PWA) in the phone
+browser
+One codebase, no store approval,
+location works while open
+Pilot Native app in Flutter or React
+Native
+Reliable wake-up pushes, background
+location, alarm sounds, full-screen alerts
+SafeCircle: Super Master Document (v2)
+Page 26 of 73
+
+===== PAGE 27 =====
+11. Volunteer location and battery: the wake-up design
+Yes, a wake-up mechanism is possible on both Android and iPhone, so "I am available"
+does not need constant GPS. The app keeps only a rough, low-power idea of the
+volunteer's area (refreshed about hourly or when they move), and takes one exact
+reading only when an alert near them is raised. Live GPS runs only after they accept, until
+they arrive.
+SafeCircle: Super Master Document (v2)
+Page 27 of 73
+
+===== PAGE 28 =====
+11.1 Five layers, from cheapest to most precise
+GoodSAM shows the same trade-off: its accuracy slider uses cell triangulation, described
+as under 1% of battery, while GPS is called power hungry and not recommended; GPS also
+stops once the responder reaches the scene (NIAS FAQ).
+Layer When it runs How Battery
+cost
+Precision
+L0 Home
+shortcut
+Phone is on the
+volunteer's home
+Wi-Fi
+Use the registered
+home address; no
+GPS at all
+Near zero Address
+L1
+Movement
+trigger
+Volunteer moves a
+significant
+distance
+OS-managed, low-
+power movement
+events (iPhone
+significant-change
+monitoring; an
+Android geofence
+around the last
+zone)
+Very low Neighbourhood
+L2 Hourly
+refresh
+About every 60
+min while available,
+skipped if the
+phone has not
+moved
+Android: a periodic
+background job
+using Wi-Fi and cell
+positioning, not
+GPS. iPhone: relies
+on L1, because iOS
+does not run apps
+on a fixed timer
+Low About 100 m to 1
+km (est.)
+L3 Wake-up
+on alert
+An alert is raised
+and this
+volunteer's zone is
+within the search
+radius
+Server sends a
+silent wake-up
+push; the app takes
+one fresh fix and
+reports it
+One fix
+per alert
+GPS-level
+L4 Live en
+route
+After Accept, until
+Arrived
+Foreground
+location every few
+seconds, then GPS
+stops on arrival
+Minutes
+per
+incident
+GPS-level
+SafeCircle: Super Master Document (v2)
+Page 28 of 73
+
+===== PAGE 29 =====
+11.2 How the wake-up works on each platform
+Android: a high-priority Firebase Cloud Messaging message is one of the allowed
+exceptions for starting a foreground service from the background. A service of type
+location , started by an app holding background location permission, can read
+location even while the app is in the background (Android developers). So: high-
+priority push, start a short location service, take one fix, send it, stop. Needs "Allow all
+the time" location and the Play Console background-location declaration.
+iPhone: the Location Push Service Extension (iOS 15+) is described by Apple as a
+power-efficient way to query a device's location even when the app is not running,
+triggered by a special location  push from our server (Apple docs). It needs a
+restricted Apple entitlement and "Always" location permission. Developers report it
+may not wake on some locked devices (Apple forums), so L1 remains the fallback.
+Verify entitlement approval for a volunteer-safety app early.
+Web app (demo): a PWA cannot read location in the background. The demo uses
+location only while the app is open, and says so.
+11.3 Never wait for the fresh fix
+1. At 0 s the server ranks candidates from their last known zone and sends alerts at once.
+2. In the same moment it sends wake-up pushes to every candidate within the radius plus
+a margin.
+3. Fresh fixes arrive over the next few seconds and re-rank Tier 1 (the rolling top 3).
+4. A phone that does not answer keeps its old zone, shown with its age ("location 50 min
+old"), and drops in rank.
+This is why hourly is enough: as you noted, people usually stay in one place for a while, and
+the alert-time fix corrects anyone who has moved.
+11.4 Privacy rules for volunteer location
+The server stores only a coarse zone (about 1 km cell) between incidents; never a
+movement history.
+Exact fixes are kept only for an incident and deleted shortly after it closes (for example
+within 72 h; Decision needed).
+Family and the person see the volunteer's name, verified badge, distance and ETA,
+never a live map of the volunteer.
+The volunteer can see and clear their own location log.
+Spoofed GPS: detect mock-location settings, cross-check against network position;
+device integrity checks (Play Integrity, App Attest) are Roadmap. Not perfect.
+SafeCircle: Super Master Document (v2)
+Page 29 of 73
+
+===== PAGE 30 =====
+12. Volunteer trust: ID, occupation, verified tag and community vote
+A volunteer earns the Verified tag only after a government ID check plus approval by their
+own community, either a society verifier or a vote of nearby verified members. Unverified
+volunteers can still help, but only in Tier 2 and never alone with a child or a person with a
+cognitive disability.
+12.1 Trust levels
+12.2 What registration collects
+Name, photo, phone, date of birth (18+ only), languages, home and optional work
+address.
+Occupation (doctor, nurse, paramedic, pharmacist, police, fire, ex-serviceman,
+security, teacher, student, other) and any first-aid or CPR certificate with its expiry
+date.
+Level Badge How it is earned What it unlocks
+L0 Registered None Phone one-time code,
+selfie, profile, code of
+conduct, mandatory
+tutorial
+Tier 2 alerts;
+protected-profile limits
+(Section 9)
+L1 ID-checked "ID checked" Government ID shared
+with consent through
+DigiLocker (Aadhaar,
+PAN or driving licence),
+selfie matched to the
+ID photo
+Same as L0, plus
+eligible for a
+community vote
+L2 Verified
+Member
+Verified L1 plus society-verifier
+approval or a passed
+community vote (12.3)
+Tier 1 high-priority
+alerts; can vote on new
+members
+L3
+Professional
+Skill badge (Doctor,
+Nurse, Paramedic,
+First-aider)
+Credential checked
+(12.4)
+Ranking bonus for
+matching cases
+(Section 9.3)
+L4 Police-
+verified
+"Police verified" Formal police
+verification through a
+partnership
+Roadmap: eligible for
+112-linked programmes
+SafeCircle: Super Master Document (v2)
+Page 30 of 73
+
+===== PAGE 31 =====
+Government ID via DigiLocker. KYC providers offer a consent flow where the user logs
+in to DigiLocker and approves sharing, and documents such as Aadhaar, PAN and
+driving licence are fetched only after that consent (Cashfree docs).
+What we keep: the verification result, name match, provider reference and a masked
+ID (last 4 digits). Not the full Aadhaar number or a copy of the card. Verify Aadhaar
+storage rules with someone qualified.
+Transport (walk, cycle, two-wheeler), maximum distance, case types opted out of,
+emergency contact for the volunteer.
+12.3 Community vote ("vouching")
+The question is "do you know and trust this person?", not "do you like them?".
+1. A new L1 volunteer requests verification for their area.
+2. The system invites the society verifier (if the society has one) and up to about 15
+randomly chosen L2 members living within about 1 km (est.).
+3. Each voter sees only: photo, first name and initial, street or block (not flat), occupation,
+and how long they have lived there. Never the ID.
+4. Voters choose: I know them and vouch, I know them and have a concern (reason goes
+privately to the admin), or I don't know them (abstain).
+5. Pass rule (proposal): at least 3 vouches, and vouches are at least two thirds of non-
+abstain votes, within 7 days. Any concern sends the case to an admin instead of auto-
+rejecting. Decision needed.
+6. Society verifier path: an RWA office-bearer appointed by the society admin can
+approve residents and staff they know directly. This is the fallback when there are not
+enough voters nearby.
+7. Quorum not reached: the volunteer stays L1 and is told how to reach a verifier. They
+are never shown as rejected.
+Safeguards
+Collusion: accounts sharing a phone, device or address cannot vouch for each other;
+each voter has a monthly vouch limit; new L2 members cannot vote for 30 days.
+Accountability: if a vouched volunteer is suspended for misconduct within 6 months,
+the vouchers' future votes count for less.
+Bias: neighbourhood votes can reflect prejudice (for example against tenants,
+domestic workers, or by caste, religion or gender). Concerns need a written reason,
+every rejection can be appealed, the verifier path stays open, and rejection rates are
+monitored by group.
+SafeCircle: Super Master Document (v2)
+Page 31 of 73
+
+===== PAGE 32 =====
+12.4 Checking professional claims
+Occupation also routes cases: a doctor nearby moves up for a medical alert (Section 9.3).
+It never obliges anyone to respond.
+12.5 Misconduct and accountability
+Every volunteer accepts a code of conduct: stay within your training, never take a child
+anywhere, never enter alone where a guard is available, hand over to the ambulance, no
+photos or posts.
+Every view of a person's profile is logged (who, when, which incident).
+After each incident the family and guard can rate and report. Reports lead to review,
+suspension or removal.
+The verified ID on record allows a police complaint if a volunteer causes harm.
+Re-verification every year; certificate badges expire automatically.
+13. Volunteer training and tutorials
+No volunteer can switch to "available" until they finish a short mandatory course and a
+practice alert. A library of emergency tutorials then stays in the app, offline, in Tamil, Hindi
+and English.
+13.1 Mandatory onboarding course (about 30 minutes, est.)
+Claim Check
+Doctor Registration number searched in the NMC Indian
+Medical Register by name, number, year and State
+Medical Council (guide)
+Nurse, paramedic State council registration or employer ID, checked
+by an admin
+First-aid or CPR certificate Upload, admin check, expiry date tracked; badge
+removed when it lapses, as GoodSAM does
+Police, fire, ex-servicemen Service ID, admin check
+Module What it teaches Check
+M1 How SafeCircle
+works
+Tiers, the 30-second upgrade, statuses, what
+the person and family see
+3 questions
+SafeCircle: Super Master Document (v2)
+Page 32 of 73
+
+===== PAGE 33 =====
+Pass mark about 80% (est.). GoodSAM uses the same pattern: read the code of conduct
+and run a simulation before the first alert (St John poster).
+13.2 Emergency tutorial library
+Each topic is a 2-minute video, an illustrated card (the same card used as a flashcard in
+Section 14) and a short quiz.
+Module What it teaches Check
+M2 Using the app Accept, Decline, navigate, On my way,
+Arrived, Need backup, masked calls
+Tap-through
+demo
+M3 Rules and privacy No photos or posts, data stays in the app,
+child rules, code of conduct
+3 questions
+M4 Your own safety Check for danger first; never confront; when
+to wait for police; the "I'm in danger" button
+3 questions
+M5 Talking to the
+person
+Introduce yourself ("My name is..., I'm a
+SafeCircle volunteer, help is on the way");
+speaking with seniors, deaf people, autistic
+people and people with dementia
+Scenario quiz
+M6 Practice alert A full simulated alert from siren to Resolved,
+including a flashcard
+Must complete
+Group Topics
+Life-threatening Hands-only CPR with an in-app metronome; using
+an AED; choking (adult, child, infant); severe
+bleeding; unconscious but breathing (recovery
+position); severe allergic reaction
+Medical Stroke signs (BE FAST); suspected heart attack;
+seizure; low blood sugar; asthma attack (help with
+their own inhaler); fainting
+Injury Fall in an older person (do not lift, suspect a hip
+fracture); head injury; burns; electric shock (switch
+off first); fracture
+Local risks Heat stroke; drowning; snakebite (keep still,
+immobilise, get to hospital; no cutting, sucking or
+tourniquet); dog bite
+SafeCircle: Super Master Document (v2)
+Page 33 of 73
+
+===== PAGE 34 =====
+CPR numbers used: compressions at 100 to 120 per minute, at least 5 cm (2 in) and no
+more than 6 cm (2.4 in) deep for an average adult; untrained rescuers do compression-
+only CPR (American Heart Association). The same AHA guidance notes that mobile apps
+alerting rescuers to a nearby arrest may raise bystander CPR rates. Verify against the
+newest AHA, ILCOR or Indian Resuscitation Council guidance before publishing.
+13.3 Quality and honesty rules
+All medical content comes from a recognised body (for example Indian Red Cross, St
+John Ambulance, AHA, ILCOR) and is signed off by a doctor, with a review date on each
+card.
+The app course does not replace hands-on CPR training. Partner with the Red Cross,
+hospitals or medical colleges for monthly practical sessions; a practical certificate
+earns the First-aider badge (Section 12).
+Refresher micro-quizzes monthly; full refresh every 12 months.
+Learning can earn badges, but response speed is never gamified, so nobody rushes or
+takes risks to win points.
+14. Smart flashcards at acceptance
+The moment a volunteer accepts, the app predicts the 3 situations they are most likely to
+find, from the person's profile, age and own incident history. The volunteer taps the one
+that matches what they see and gets that card's steps at once. A "Not breathing? Start
+CPR" button is always on screen, whatever the prediction says.
+14.1 What the volunteer sees, in order
+1. Safety line: "Check for danger before you go in."
+Group Topics
+People and behaviour Lost child (stay in a visible public place, call the
+parent, never take the child home); wandering
+person with dementia; autistic meltdown (reduce
+noise and touch); panic attack; harassment as a
+bystander (distract, delegate, document, delay,
+direct); domestic violence (do not intervene
+physically; call 112)
+Building Fire (evacuate, no lifts); gas leak (no switches,
+open windows); stuck lift
+After a hard call Normal stress reactions, when to talk to someone
+SafeCircle: Super Master Document (v2)
+Page 34 of 73
+
+===== PAGE 35 =====
+2. Handling banner from the profile, for example "Hard of hearing: face her, speak slowly"
+or "Autistic: do not touch, keep voices low".
+3. Likely situations: three large chips, for example Fall, Low blood sugar, Stroke.
+4. Always visible: "Not breathing or unresponsive? Start CPR" (opens the CPR card with
+metronome).
+5. Something else: a symptom picker (not breathing, unconscious, bleeding, chest pain,
+can't speak, confused, fell, scared or upset, other), which opens the right card.
+Tapping a chip opens its card: what to check, numbered steps, what not to do, when to call
+112, and what to tell the ambulance crew. Cards are large-text, can be read aloud hands-
+free, and are cached on the phone so they work with no signal.
+14.2 How the 3 situations are ranked
+\text{score}(c) = w_1 \cdot \text{profile}(c) + w_2 \cdot \text{history}(c) + 
+w_3 \cdot \text{context}(c) + w_4 \cdot \text{age}(c) + w_5 \cdot 
+\text{population}(c)
+Start with hand-set weights and simple rules; replace them with a learned model only
+once pilot data exists.
+Worked example. Lakshmi, 78, diabetic, hard of hearing, two falls in the last year, pressed
+at 6 am. Ranked: 1 Fall, 2 Low blood sugar, 3 Stroke. Banner: "Hard of hearing: face her,
+speak slowly. Key with neighbour in B-205."
+Signal Example Weight (est.)
+Profile conditions Diabetic, so low blood sugar; epilepsy, so
+seizure; heart disease, so chest pain or arrest;
+asthma; dementia, so confusion or wandering
+High
+This person's own
+history
+4 of her last 6 incidents were falls High
+Trigger context Check-in call answer ("2 fall"); caregiver's
+words; time of day
+High when
+present
+Age band Over 75: fall, stroke, chest pain. Child: lost,
+injury, asthma
+Medium
+Everyone's history What incidents for this age band usually turn
+out to be, learned over time
+Low at first
+SafeCircle: Super Master Document (v2)
+Page 35 of 73
+
+===== PAGE 36 =====
+14.3 The tap feeds back
+The chosen card becomes the incident's volunteer-observed type. The dashboard, the
+family and the 112 handoff see it, worded carefully: "Volunteer reports possible low
+blood sugar."
+The volunteer can change their choice as things develop; every change is logged.
+After closure the outcome is added to the person's history, which sharpens the next
+prediction.
+14.4 Safety limits
+Cards are first-aid guidance, not a diagnosis. Each says so in one line.
+No medicine doses. Cards only cover helping a person use their own prescribed items
+(inhaler, glucose, adrenaline auto-injector) and only as the source guideline allows.
+Condition names are shown only to the accepted responder (Section 20).
+Every card is doctor-reviewed and dated (Section 13.3).
+15. Family, guards and authorities
+The family sees a live status page, the guard gets a loud desk alarm with the flat number,
+and 112 receives a ready-made handoff packet. Nobody has to phone around to find out
+what is happening.
+15.1 Family and caregivers
+Channel: WhatsApp utility template with a link to a live status page (no app), plus SMS
+fallback. An automated call goes out if the message is not opened within about 60 s,
+then the next contact is tried.
+The status page shows: alert received; who accepted (name, Verified badge, skill such
+as "Nurse"); distance and ETA; arrived; handed to ambulance; resolved. Never the
+volunteer's live position on a map. The family does see the person's own location from
+the pendant.
+Family actions: "I'm on my way" (joins the responder list), call the volunteer or guard
+through a masked number, "This is a false alarm" (runs the verification in Section 6, it
+does not cancel on its own), and share the medical summary with the hospital.
+Cost: volunteer and family alerts are business-started WhatsApp messages, so they
+are paid utility templates (Section 4, T2).
+15.2 Society security guards
+Guards are often the fastest responders because they are on site and know the building.
+SafeCircle: Super Master Document (v2)
+Page 36 of 73
+
+===== PAGE 37 =====
+Guard desk: web dashboard with a loud alarm showing incident type, block and flat.
+Guard phone: the guard role of the volunteer app (Section 10.4), with SMS or voice-call
+fallback for basic phones.
+Access: guards see the full address and access notes immediately (trusted role).
+Tasks: go to the flat, open the gate and hold the lift for the ambulance, meet volunteers
+at the gate, do the in-person check after a cancel (Section 6).
+Unreachable guard: alert moves to the next guard, then the society admin; timers keep
+running.
+15.3 Authorities: dashboard and 112 handoff
+Dashboard (society desk or police control room): live map with the person's position,
+its source and accuracy, incident list, volunteer and guard status, timeline of every
+event, and the escalation state. Stores the incident log for review.
+112 handoff packet: person's name and age band, exact address and live coordinates
+with their source and accuracy, profile summary relevant to care, volunteer-observed
+type (Section 14), who is on scene, and callback numbers.
+Demo: the handoff is simulated on the dashboard and labelled as such.
+Roadmap: ERSS-112 already lists IoT-based and external signals among its channels
+(Section 3.1), so a formal integration with the state PSAP is a realistic pilot goal, subject
+to permission.
+RWA report: a monthly summary per society (alerts, response times, false alarms,
+volunteer coverage gaps).
+15.4 Example timeline
+Time What happens
+0:00 Lakshmi (78) holds her pendant. It buzzes once:
+sending
+0:03 Server confirms. Pendant: blue pulse, two-tone
+chime. Guard desk alarm, family WhatsApp, 3
+nearest verified volunteers get high-priority
+alarms, 9 others normal alerts
+0:05 Wake-up pushes return fresh locations; a nurse
+280 m away moves into the top 3
+0:18 The nurse accepts. Pendant: green pulse, "help is
+coming" chime. Family page: "Priya (Verified,
+Nurse) is on the way, about 3 min"
+SafeCircle: Super Master Document (v2)
+Page 37 of 73
+
+===== PAGE 38 =====
+16. Scenario playbook
+These are the situations a real deployment will meet, including the ugly ones, and how the
+design handles each. Use them to test the build and to answer judges.
+16.1 Medical and everyday emergencies
+Time What happens
+0:20 Other volunteers: "Covered, thank you" (one
+backup kept for a medical case)
+0:25 Priya's flashcards: Fall, Low blood sugar, Stroke;
+banner "Hard of hearing"
+3:10 Priya arrives (pendant: green solid). Guard has
+opened the door with the spare key from B-205.
+She taps Low blood sugar
+4:00 Lakshmi is conscious and given sugar; family
+arrives; Resolved. If nobody had accepted by 1:30,
+112 would have been told
+# Scenario Design response
+1 Senior falls at home, conscious, cannot
+get up
+Standard P2 flow; flashcard "Fall: do not
+lift"; guard brings the spare key
+2 Senior presses, then collapses; nobody
+answers the check-in call
+Raised to P1: everyone high priority, 112
+told at once
+3 Cardiac arrest in the society garden; a
+neighbour sends "HELP" or scans a
+pendant QR
+P1; up to 3 responders (CPR, swap, fetch
+AED); metronome card
+4 Diabetic senior confused at dawn Flashcards rank low blood sugar first
+from the profile
+5 Person found fine; refuses help Volunteer marks Resolved with "no help
+needed"; family told; logged
+SafeCircle: Super Master Document (v2)
+Page 38 of 73
+
+===== PAGE 39 =====
+16.2 Children and people with cognitive disabilities
+16.3 Violence, harassment and coercion
+# Scenario Design response
+6 Child lost near school presses the bag-
+tag button
+Pendant GPS gives the spot; verified
+responders only as primary; "stay in a
+visible public place, never take the child
+anywhere"; parent gets the responder's
+name and badge
+7 Child presses repeatedly for fun Each cancel is verified with the parent;
+history shows the pattern; parent
+coached; alerts never silently ignored
+8 Person with dementia walks out; a
+stranger scans the pendant QR
+Pendant GPS shows where they are, with
+the bystander flow as backup; wandering
+card; family and nearest volunteers
+alerted
+9 Autistic teen in meltdown in a mall;
+caregiver sends "HELP"
+Caregiver trigger; calm handling banner
+("no touch, low voices"); one responder
+plus mall security
+10 Deaf person needs help No voice anywhere: WhatsApp, vibration
+confirmation, "write or gesture" banner
+# Scenario Design response
+11 Woman harassed on the street, phone in
+bag
+Stealth mode: a normal press with lights
+only and no sound (or the discreet
+profile's triple press, with no light at all);
+no call to her, live GPS to responders and
+112; responders "observe and call",
+woman responder preferred; P1 so 112 is
+told at once
+12 Attacker forces the person to cancel Verification call; no answer or duress PIN
+keeps the alert alive at high priority;
+button stays quiet so the attacker is not
+alerted
+13 Break-in at night Guard and 112; volunteers told to stay out
+and observe only
+SafeCircle: Super Master Document (v2)
+Page 39 of 73
+
+===== PAGE 40 =====
+16.4 Misuse and abuse of the system
+16.5 System and environment failures
+# Scenario Design response
+14 Domestic violence; the abuser is a
+registered family contact
+"Never inform" list in the profile hides
+status from that contact
+# Scenario Design response
+15 Fake "HELP" from an unknown number
+to lure a volunteer
+Unverified incidents go to the guard desk
+only, never to volunteers automatically
+16 Stalker joins as a volunteer to learn
+addresses
+Address only after accepting; protected
+profiles need verified responders; every
+profile view logged; accepting without
+moving is flagged
+17 Volunteer accepts and does not move "Still coming?" at 3 min, then re-opened
+to others; reliability score drops
+18 Too many volunteers rush in Team caps per case (Section 8.5);
+"Covered, thank you" to the rest
+19 Spoofed GPS to look closer Mock-location detection and network
+cross-checks (Section 11.4)
+# Scenario Design response
+20 Wi-Fi or power is down when the button
+is pressed
+Retries with the red pattern; a Go
+pendant falls back to 4G; Roadmap: LoRa
+and a local siren
+21 Button battery slowly dies Heartbeat flags low battery to the
+caregiver days ahead
+22 3 am, nobody available 30 s upgrade, wider radius, guard and
+family calls, 112 at 90 s
+23 Flood or cyclone: dozens of alerts at
+once
+Mass-incident mode: dashboard triage,
+cluster by building, volunteers asked to
+check the registered vulnerable people
+near them
+SafeCircle: Super Master Document (v2)
+Page 40 of 73
+
+===== PAGE 41 =====
+16.6 Volunteer welfare
+16.7 Location scenarios (v2.1)
+# Scenario Design response
+24 Fire in the building 112 at once; guards use the society's list
+of residents who need help evacuating
+25 Person presses while away from home
+(another city)
+Go pendant sends GPS, Wi-Fi scan and
+cell location over 4G; a Home button can
+only flag "away from home" and ask the
+caregiver
+26 Family lives abroad Local contacts and volunteers carry the
+response; family follows the status page
+# Scenario Design response
+27 Scene turns dangerous "I'm in danger" button: guard, other
+responders and 112 get the volunteer's live
+location
+28 Volunteer witnesses a death or
+serious injury
+Wellbeing check after the call, debrief
+contact, option to pause alerts
+29 Volunteer worried about legal trouble Code of conduct, stay within training,
+mission log; legal position in Section 20
+# Scenario Design response
+30 Inside a mall, metro or basement where
+GPS cannot lock
+Wi-Fi scan estimate, known places, cell as
+last resort; accuracy circle shown
+honestly; guard or mall security asked to
+search
+31 Child carried off in a vehicle Pendant moving at vehicle speed on a
+child profile raises P1 (Decision needed);
+live track to 112 and family; volunteers
+told not to chase
+32 Pendant battery flat outdoors Low-battery pattern and caregiver
+message at 20%; the bystander QR
+works with no power
+SafeCircle: Super Master Document (v2)
+Page 41 of 73
+
+===== PAGE 42 =====
+17. Design by user category
+The same system adapts to four groups through the profile: which trigger they carry, how
+the button talks back, and what the responder is told.
+# Scenario Design response
+33 No mobile signal (rural road, lift) Store and retry; a saved Wi-Fi if near; the
+first message goes the moment signal
+returns
+34 GPS puts the person across the road or
+on the wrong floor
+Responders see source and accuracy;
+card prompts "call out and look around";
+make-it-beep button (Roadmap)
+35 A family member wants to use the
+pendant to track an adult
+Location shared only during alerts and
+drills by default; any other mode needs
+the adult's own consent; access logged
+SafeCircle: Super Master Document (v2)
+Page 42 of 73
+
+===== PAGE 43 =====
+17.1 The four groups
+Stealth mode for girls and women. Any girl or woman who goes out alone can use the
+Stealth profile (Section 7.2), including adults outside these four groups. The button
+confirms each stage with light only, so nobody nearby can tell help is on the way.
+17.2 Physical disability sub-types
+Group Main problem Trigger Feedback
+profile
+Responder is
+told
+Special rules
+Children May have no
+phone, may
+panic, cannot
+give an address
+Go pendant
+(GPS, 4G) on
+wristband, bag
+tag or ID holder
+Child: friendly
+colours and
+chime
+Name, age,
+photo, parent's
+number, "this is a
+minor"
+Verified primary
+only; never take
+the child
+anywhere;
+parent gets
+responder's ID;
+parent verifies
+every cancel
+Seniors Falls, medical
+events, living
+alone, poor
+eyesight and
+hearing
+Home buttons
+in bathroom and
+bedroom; Go
+pendant when
+going out
+Loud: strong
+buzzer and
+vibration
+Medical notes,
+doctor, where
+the key is
+Nurses and
+doctors ranked
+up; check-in call
+at the start
+Physical
+disabilities
+Cannot reach a
+phone or a small
+button; cannot
+hear or see
+feedback
+Large palm or
+elbow button at
+bed and
+wheelchair
+height
+Visual-first or
+touch-and-
+sound by sub-
+type
+Mobility aids,
+how to move
+them safely
+No flow requires
+speaking or
+hearing
+Cognitive
+disabilities
+May not
+understand, may
+wander, sensory
+overload
+Single pictorial
+Go pendant;
+caregiver
+trigger
+Calm: soft and
+predictable
+Handling
+instructions
+written by the
+caregiver
+A cancel from
+the person alone
+never closes an
+alert
+Sub-
+type
+Problem Feature
+Mobility Cannot reach a phone or press a
+small button
+Large-surface button; voice trigger and
+sip-and-puff switch are Roadmap
+Visual Cannot find or read a screen Tactile button, distinct sound and
+vibration counts, screen-reader-friendly
+portal
+Hearing Cannot hear a callback or siren Light and vibration confirmation;
+WhatsApp instead of calls
+SafeCircle: Super Master Document (v2)
+Page 43 of 73
+
+===== PAGE 44 =====
+112 defaults to a voice call, which excludes deaf and speech-impaired users. No SafeCircle
+flow requires speaking or hearing.
+17.3 Feature matrix
+18. Hardware and location: the Home button and the Go pendant
+To find a person away from home, the button needs GPS, and GPS alone is not enough: the
+location also needs a way out, because home Wi-Fi is not there outdoors. So the outdoor
+device is an ESP32 with Wi-Fi, a GPS receiver and a 4G modem, and SafeCircle becomes
+two devices: a cheap Wi-Fi Home button that never moves, and a Go pendant that works
+anywhere.
+Sub-
+type
+Problem Feature
+Speech Cannot explain on a call One press sends everything; responder
+told to expect a non-verbal person
+Feature Child Senior Physical Cognitive
+Physical button Yes Yes Yes (large) Yes (pictorial)
+Bystander QR Yes Yes Some Yes (wandering)
+Caregiver trigger Yes Yes Some Yes
+Check-in call at
+start
+Parent
+instead
+Yes If they can use a
+phone
+Caregiver instead
+Cancel
+verification
+Via parent Call to self Call or WhatsApp Caregiver plus guard
+check
+Smart flashcards Yes Yes Yes Yes, handling first
+Fall detection No Roadmap Some No
+Daily check-in No Roadmap Roadmap Roadmap
+Priority
+responder
+Verified
+adult
+Doctor or
+nurse
+Trained helper Caregiver-briefed
+Go pendant with
+GPS
+Yes When going
+out
+If they go out Yes (wandering)
+SafeCircle: Super Master Document (v2)
+Page 44 of 73
+
+===== PAGE 45 =====
+18.1 Two devices
+The hackathon demo can still use a Wi-Fi-only Home button. The demo Go pendant is an
+ESP32 plus a GPS module sending over the phone hotspot (18.6).
+18.2 How the pendant finds the person: send now, refine later
+The pendant never waits for GPS before raising the alarm. It sends the best location it has
+within seconds, then sharpens it.
+Home button Go pendant
+Where Wall, bedside, bathroom, wheelchair Worn outside: pendant, wristband,
+bag tag, school-ID holder
+Inside ESP32, button, RGB LED, passive
+buzzer, vibration motor
+The same, plus a GPS receiver, a 4G
+modem with SIM, LTE and GPS
+antennas, a bigger battery
+Location Registered flat and room GPS outdoors, Wi-Fi scan indoors,
+cell tower as backup, known places,
+registered address at home
+Sends over Home Wi-Fi A saved Wi-Fi network if in range,
+otherwise 4G
+Charging
+(est.)
+Rarely: deep sleep between events Every few days
+For Seniors at home, people with limited
+mobility
+Children, seniors who go out, people
+who may wander
+pendant location sources · 3 in parallel, 1 backend
+SafeCircle: Super Master Document (v2)
+Page 45 of 73
+
+===== PAGE 46 =====
+A later fix replaces the earlier estimate only when it is more accurate, so responders
+never see the location get worse.
+1. Press (0 s): the ESP32 wakes and starts three things at once: the GPS receiver, the 4G
+modem, and a Wi-Fi scan. Listing nearby networks does not require joining any of them.
+2. First message (a few seconds, est.): device ID, event, and whatever location it already
+has: the known place if it sees a saved network, the Wi-Fi scan list, the serving cell
+tower, and its last GPS fix with that fix's age. The backend turns the Wi-Fi and cell lists
+into a position and dispatches immediately.
+3. GPS fix: about 1 s on a hot start, about 24 s on a cold start (18.3). Sent as a location
+update; dispatch re-ranks volunteers.
+4. While the alert is open: an update about every 10 s while the person moves and about
+every 60 s while still (est.).
+5. Close: GPS and modem switch off and the pendant goes back to deep sleep.
+The backend always uses the most accurate fresh source and shows responders both the
+source and an accuracy circle ("GPS, about 8 m" or "Wi-Fi estimate, about 60 m"). It never
+hides uncertainty.
+Source Typical accuracy Works where Used when
+Registered
+address
+The flat At home Home button, or
+pendant on home
+Wi-Fi
+Known place
+(saved Wi-Fi)
+The building School, day centre,
+relatives' homes
+The pendant sees a
+saved network
+GPS fix About 1.5 m listed for a u-
+blox M10 chip-antenna
+module in open sky
+(SparkFun); worse near
+buildings
+Outdoors, near
+windows
+Main outdoor
+source
+Wi-Fi scan About 20 m in Google's
+own example
+Indoors and in
+cities
+GPS weak or not yet
+locked
+Cell tower About 180 m to 1.5 km in
+Google's examples
+(Google)
+Anywhere with
+signal
+Last resort
+Bystander QR The stranger's phone Anywhere No fix, or a flat
+battery
+SafeCircle: Super Master Document (v2)
+Page 46 of 73
+
+===== PAGE 47 =====
+18.3 How GPS works, in plain words
+Satellites and timing. A GPS receiver listens to timing signals from satellites (GPS, plus
+Galileo, BeiDou, GLONASS or India's NavIC on multi-system receivers) and computes
+its position from them. It needs to see the sky; roofs, walls, basements and lifts block
+it.
+Cold and hot start. To compute a position it needs the satellites' orbit data. Without
+fresh data a cold start takes about 24 s on the u-blox MAX-M10S; with saved data a hot
+start takes about 1 s (SparkFun MAX-M10S).
+Backup battery. A small onboard battery keeps the clock and orbit data for up to
+about five hours with main power off (same source). A pendant that had a fix recently
+starts almost instantly.
+Assisted GPS. The pendant can download orbit data over Wi-Fi or 4G and skip the cold
+start; u-blox lists an aided start of about 1 s for its M10 chip-antenna module (SparkFun
+SAM-M10Q). Firmware refreshes this data while charging.
+Power. The MAX-M10S draws under 25 mW in continuous tracking, about 6-25 mA
+depending on mode (SparkFun MAX-M10S). The SAM-M10Q lists about 10 mA tracking
+and 5 mA in power-save mode (SparkFun SAM-M10Q). Small enough to run for a whole
+incident, too much to leave on all day.
+Antenna. The GPS antenna must face outward and up, away from the body and the
+battery. Test on a wrist, around the neck and in a pocket.
+NavIC (optional). India's own satellite system. Quectel's L89HA-S90 receives GPS and
+NavIC on L1 and L5 with an integrated antenna and assisted start, and is sold in India
+(Hubtronics). NavIC is required for vehicle trackers under AIS-140 (Telit); we found no
+such rule for personal devices.
+18.4 How the alert leaves the pendant
+1. A saved Wi-Fi network (home, school) if in range: fastest and free.
+2. 4G Cat-1 through the SIM everywhere else. Cat-1 runs on ordinary 4G networks. The
+LilyGO T-A7670G covers global LTE bands, including B1, B3, B5, B8, B40 and B41, and
+falls back to GSM (LilyGO). Verify band coverage with Jio, Airtel and Vi in the pilot
+area.
+3. Bluetooth to a paired phone running a background helper (Roadmap).
+4. Store and retry with the red pattern if nothing works.
+The LilyGO A7670 boards are data-only, with no voice calls (LilyGO). That is fine: the
+pendant never needs to call, and verification calls go to the person's phone or
+caregiver (Section 6).
+SIM: an IoT data SIM with a small plan; alerts and heartbeats use very little data. Verify
+plan prices.
+SafeCircle: Super Master Document (v2)
+Page 47 of 73
+
+===== PAGE 48 =====
+Status back to the pendant (Section 7.3) uses the same 4G link, over MQTT.
+18.5 Power and battery
+GPS stays off between alerts. That saves battery and makes the pendant a safety
+device, not a tracker (Section 20.6). An opt-in safe-zone mode is Roadmap.
+Current peaks. A 4G modem draws short, high current bursts while transmitting. The
+MT3608 boost converter from v1 is not suitable; use the board's own power path or a
+LiPo with a regulator rated for the modem's peak. Verify the peak in the modem
+datasheet. LilyGO's A7670 boards are designed around an 18650 cell.
+Target (est.): a charge every 3-7 days, a low-battery pattern on the pendant and a
+message to the caregiver at 20%.
+Charging: a magnetic or pogo-pin dock (Roadmap enclosure), so seniors and children
+never fiddle with a cable.
+18.6 Module options
+Mode What is on When
+Sleep Nothing but the ESP32's wake pin; the GPS backup
+battery keeps orbit data for hours
+Almost all the time
+Heartbeat ESP32 and the cheapest link (saved Wi-Fi, else 4G)
+for a few seconds
+About every 6 h (est.)
+Alert ESP32, GPS, 4G, Wi-Fi scan, LED, buzzer, vibration Until the incident closes
+Charging Assisted-GPS data refresh, firmware updates On the dock
+Route What it is Good Catch Price seen
+A. Demo ESP32 DevKit
+plus a GNSS
+breakout: u-blox
+MAX-M10S or
+SAM-M10Q, or a
+budget NEO-6M
+or ATGM336H
+Cheapest,
+simple serial or
+I2C wiring
+No 4G; outdoors
+it sends through
+the phone
+hotspot
+SparkFun MAX-
+M10S about
+₹ 6,040
+imported
+(Tanotis);
+budget
+modules about
+₹ 300-600 (est.)
+SafeCircle: Super Master Document (v2)
+Page 48 of 73
+
+===== PAGE 49 =====
+Recommendation: route A for the hackathon, route B for the pilot, route C for scale.
+Check that any LilyGO board ordered is the GPS version: LilyGO sells it with and without
+GPS (LilyGO).
+18.7 Firmware behaviour
+Sleep and heartbeat as in 18.5. The button pin wakes the chip.
+Press timing: about 2 s hold raises SOS; about 4 s requests cancel; triple press is silent
+SOS on discreet profiles (Section 6).
+On press: start GPS, modem and Wi-Fi scan together; send the first message without
+waiting for GPS (18.2).
+During the incident: send location updates (18.2), keep the status link open (Section
+7.3), keep sending silently while a cancel is being verified (Section 6).
+Retry: queue messages, retry with back-off, red pattern if nothing gets through.
+No personal data on the device. Location is attached only to alerts, drills and
+heartbeats that report link health.
+Example alert from a Go pendant (placeholder values):
+Route What it is Good Catch Price seen
+B. Pilot LilyGO T-A7670G
+R2 with GPS:
+ESP32-
+WROVER-E,
+A7670G 4G Cat-
+1, LTE and GPS
+antennas, 18650
+holder
+Everything on
+one board, with
+LTE and GPS
+examples
+Bulky (111 × 34 ×
+19 mm per
+LilyGO); data only
+₹ 6,999 incl. GST
+(Probots)
+C.
+Production
+Custom PCB:
+small ESP32 (C3
+or S3), Cat-1
+modem, M10-
+class or NavIC
+GNSS, chip
+antennas
+Small, much
+cheaper at
+volume
+Design time, RF
+tuning,
+certification
+Verify at quote
+D. Budget
+variant
+ESP32 plus
+GNSS, sending
+through
+Bluetooth to a
+paired phone
+No SIM cost Needs a phone
+nearby with the
+helper
+Roadmap
+SafeCircle: Super Master Document (v2)
+Page 49 of 73
+
+===== PAGE 50 =====
+{
+  "device_id": "GO-021",
+  "event": "panic",
+  "battery": 76,
+  "seq": 112,
+  "location": {
+    "gps": {"lat": 13.0827, "lng": 80.2707, "acc_m": 8, "age_s": 3},
+    "wifi": [{"bssid": "a4:2b:..", "rssi": -61}, {"bssid": "f0:9f:..", 
+"rssi": -74}],
+    "cell": {"mcc": 404, "mnc": 0, "tac": 0, "cell_id": 0},
+    "known_place": null
+  },
+  "signature": "a91f3c..."
+}
+Events: panic , cancel , silent_panic , location_update , heartbeat , low_battery .
+The backend turns the Wi-Fi and cell lists into a position with a geolocation service such
+as Google's Geolocation API, which accepts the Wi-Fi access points and cell towers a
+device can see and returns a position with an accuracy radius (Google).
+18.8 Bill of materials (prices est., confirm at purchase)
+Home button (2 for the demo, unchanged from v2):
+Go pendant prototype (1 for the demo):
+Item Qty Note Approx. ₹
+ESP32 DevKit (30-pin) 2-3 One main, one tested spare 700-1,400
+30 mm arcade or panic push button 2 Momentary, normally open 100-200
+Passive buzzer 3 Chimes and multiple tones 45-90
+RGB LED, or a WS2812B LED or small
+ring
+2-3 Ring allows the "fill while
+holding" effect
+50-250
+Coin vibration motor 3 V, transistor,
+flyback diode
+2 100-150
+LiPo 3.7 V 1000 mAh, TP4056 with
+protection, MT3608 boost, switch
+2
+sets
+Fine for the Home button; not
+for 4G
+600-900
+Breadboards, jumpers, perfboard,
+wire, enclosure, strap, data cables,
+QR sticker
+1 set 1,000-
+1,200
+SafeCircle: Super Master Document (v2)
+Page 50 of 73
+
+===== PAGE 51 =====
+Tools if the team lacks them: soldering iron, solder, stripper, multimeter, glue gun (about
+₹ 800-1,500).
+18.9 Build order and test plan
+1. Button and LED on a breadboard; a press prints to serial.
+2. Long-press timing (2 s and 4 s) and triple-press detection.
+3. Wi-Fi POST to a test endpoint, then to the real backend.
+4. Passive buzzer tones, RGB patterns and vibration counts for every stage in Section 7.
+5. Status polling after a press.
+6. GPS: read fixes from the module over serial or I2C; log cold-start and hot-start times
+outdoors.
+7. Location in the alert: add the GPS fix, Wi-Fi scan list and known-place match to the
+payload; the backend calls the geolocation service; the dashboard shows source and
+accuracy.
+8. Updates: send location every few seconds while the incident is open; stop on close.
+9. 4G (pilot): attach the modem, send with Wi-Fi switched off, receive status over MQTT.
+10. Battery and enclosure; rehearse the full flow at least five times.
+Test plan: wrong signature rejected; no network shows the failed pattern and retries;
+double press makes one incident; cancel triggers verification; each stage plays the right
+pattern; outdoor cold and hot start times; indoor test where GPS fails and the Wi-Fi
+Item Qty Note Approx. ₹
+ESP32 DevKit 1 Route A 350-700
+GNSS module with antenna 1 Budget module, or MAX-
+M10S for low power
+300-6,040
+Same button, LED, buzzer,
+vibration parts as above
+1
+set
+300-600
+LiPo 1500-2000 mAh with a
+suitable regulator, or a power
+bank for the demo
+1 400-800
+Or, instead of the rows above:
+LilyGO T-A7670G R2 with GPS
+(route B) plus an 18650 cell and an
+IoT data SIM
+1 Pilot route 6,999 plus cell
+and SIM
+SafeCircle: Super Master Document (v2)
+Page 51 of 73
+
+===== PAGE 52 =====
+estimate takes over; walking test where the dashboard pin follows; GPS fix compared
+with a phone's position; 24-hour battery drain in sleep; time from press to first volunteer
+alert recorded.
+19. Technical architecture, data model and security
+One backend owns every incident; every channel is just an input or an output around it.
+Privacy rules such as "address only after accepting" are enforced on the server, never only
+in the app.
+19.1 Components
+Component Job Suggested tech (Decision needed)
+Ingest gateway Button API (over Wi-Fi and 4G),
+MQTT broker, WhatsApp, SMS,
+missed-call and voice webhooks,
+bystander page
+HTTPS endpoints; Mosquitto or
+EMQX for MQTT
+Incident service States, merging, severity, timers Node (NestJS) or Python (FastAPI);
+job queue on Redis for timers
+Dispatch
+service
+Geo search, tiers, ranking,
+upgrades
+PostgreSQL with PostGIS
+Location
+service
+Volunteer zones, wake-up pushes
+and fresh fixes; person location
+fusion from GPS, Wi-Fi scan, cell
+and known places; retention
+clean-up
+Firebase Cloud Messaging
+(Android), APNs including location
+pushes (iPhone); a Wi-Fi and cell
+geolocation API
+Notification
+service
+App alerts, WhatsApp templates,
+SMS, voice calls, masked calls
+FCM/APNs, WhatsApp Business
+provider, Exotel or similar
+Verification
+service
+DigiLocker checks via a KYC
+provider, credential review, vote
+engine
+Provider API plus admin console
+Content service Tutorials and flashcards,
+versioned and dated
+Static files plus a card database
+Web apps Setup portal, family status page,
+guard and authority dashboard
+React or plain HTML; Leaflet with
+OpenStreetMap; WebSockets for
+live updates
+SafeCircle: Super Master Document (v2)
+Page 52 of 73
+
+===== PAGE 53 =====
+19.2 Data model
+people: profile, address, pin, key location, medical and handling notes (encrypted),
+language, feedback profile, safety rules, consent
+caregivers and sender_numbers: phone, role ( self , caregiver ), verified flag, can-
+cancel flag, never-inform flag
+devices: device_id, person_id, secret key, claim code, status, last_seen, battery, Wi-Fi
+network fingerprint, type (home or go), SIM ID, known places, last GPS fix time
+societies and guards: society, guard phone, on-duty status, admin
+volunteers: trust level, skills, credentials with expiry, availability mode, duty windows,
+reliability score, transport, max distance
+volunteer_zones: volunteer_id, coarse cell, updated_at (no history)
+volunteer_fixes: volunteer_id, incident_id, lat, lng, accuracy, time (deleted after
+retention)
+votes: candidate, voter, choice, private reason, time
+incidents and incident_events: source, severity, state, flags (escalated, duress,
+unverified, drill), every event with a timestamp
+dispatches: incident, volunteer, tier, sent, response, reason, upgrade time
+cards and card_selections: card content and version; which card a responder chose
+and when
+audit_log: who viewed which profile, when, for which incident
+person_locations (new in v2.1): incident_id, lat, lng, accuracy, source (gps, wifi, cell,
+known_place, registry), speed, time. Deleted on the same schedule as volunteer fixes
+(Section 20.2).
+19.3 Key endpoints
+Component Job Suggested tech (Decision needed)
+Volunteer app Face B Flutter or React Native (PWA for the
+demo)
+Audit log Every view, dispatch and status
+change
+Append-only table
+Endpoint Purpose
+POST /api/sos/device Button events (signed), with a location
+object from the Go pendant (Section 18.7)
+SafeCircle: Super Master Document (v2)
+Page 53 of 73
+
+===== PAGE 54 =====
+19.4 Security
+Device spoofing and replay: HMAC signature with a per-device key, plus an increasing
+sequence number.
+Transport: TLS everywhere in production. Plain HTTP on the hotspot is demo-only and
+labelled so.
+At rest: field-level encryption for medical notes, access codes, ID references and
+person location fixes.
+Staged disclosure enforced by the briefing endpoint, not by hiding fields in the app.
+Webhooks: verify every provider signature; reject unsigned calls.
+Rate limits per device, phone number and volunteer.
+Masked calling so no phone numbers are exchanged.
+Retention jobs delete fixes, chats and recordings on schedule (Section 20).
+20. Privacy, legal and safety
+Two legal facts shape the design: India's data protection rules now require verifiable
+consent for children and for persons with disabilities who have a lawful guardian, and
+India's statutory Good Samaritan protection covers road accidents only. Neither is a
+Endpoint Purpose
+GET /api/device/{id}/status Button polls its incident stage
+POST /webhooks/whatsapp , /webhooks/sms ,
+/webhooks/voice
+Provider callbacks (signature checked)
+POST /api/volunteer/availability Toggle and mode
+POST /api/volunteer/location Zone update or incident fix
+POST /api/incidents/{id}/respond Accept or Decline with reason
+GET /api/incidents/{id}/briefing Address, profile, cards; returns 403 unless
+this volunteer accepted
+POST /api/incidents/{id}/status On my way, Arrived, Need backup,
+Resolved
+POST /api/votes Community vote
+WS /ws/dashboard Live incident stream
+POST /api/device/{id}/location Location updates from the Go pendant
+while an incident is open
+SafeCircle: Super Master Document (v2)
+Page 54 of 73
+
+===== PAGE 55 =====
+blocker, but both must be designed for. This section is not legal advice; get a qualified
+review before a pilot.
+20.1 Data protection (DPDP Act 2023 and Rules 2025)
+The DPDP Rules were notified on 14 November 2025 with a phased rollout; the core
+duties (notice and consent, security, breach reporting, children's consent) apply 18
+months later, around May 2027 (SCC Online, AMLEGALS).
+Children: Rule 10 needs verifiable consent from a parent before processing a child's
+data; Rule 11 needs a lawful guardian's verifiable consent for a person with a disability
+(SCC Online). The portal's consent step (Section 5.1) is built for this. Many adults with
+disabilities have no guardian and consent for themselves.
+Design to the rules now even though the main duties start in 2027: a pilot would run
+into that date.
+Data minimisation: every profile field must change a response (Section 5.2).
+Volunteers store a coarse zone, not a movement history (Section 11.4). The pendant's
+GPS is off between alerts (Section 18.5).
+Rights: download and delete for people, caregivers and volunteers; consent can be
+withdrawn in the portal or app.
+20.2 Retention schedule (proposal, Decision needed)
+20.3 Government ID
+Use DigiLocker consent flows through a KYC provider and keep only the result, a masked
+number and the provider reference (Section 12.2). Do not store full Aadhaar numbers or
+card images. Verify with a lawyer which ID checks a non-regulated private platform may
+run.
+Data Kept for
+Volunteer exact location fixes 72 h after the incident closes
+Responder chat, masked-call logs 7 days
+Incident record and outcome 1 year, then anonymised for statistics
+Audit log of profile views 1 year
+ID verification result (masked) While the account exists
+Person's profile Until the caregiver or person deletes it
+Person's location fixes from the Go pendant 72 h after the incident closes
+SafeCircle: Super Master Document (v2)
+Page 55 of 73
+
+===== PAGE 56 =====
+20.4 Volunteer legal protection
+India's Good Samaritan guidelines came from the Supreme Court's 2016 SaveLife
+Foundation ruling and were later written into the Motor Vehicles Act as Section 134A in
+the 2019 amendment (Supreme Court order). That section protects people helping
+victims of accidents involving a motor vehicle (Daily Star explainer).
+Gap: most SafeCircle cases (a fall at home, a seizure, harassment) are not road
+accidents, so that specific protection does not apply. Verify with a lawyer what
+general-law protection exists for good-faith first aid.
+Mitigations: a code of conduct (stay within training, hand over to professionals, no
+driving under emergency conditions), the mission log as a record, volunteer accident
+insurance for the pilot, and clear terms that volunteering is optional. GoodSAM's
+approach is similar: no obligation to attend, and a code of conduct designed to keep
+responders within a Good Samaritan act (NIAS FAQ).
+20.5 Platform honesty
+SafeCircle never promises that a volunteer will come. Every screen and the terms say it
+adds to 112, it does not replace it.
+Medical content is doctor-reviewed and dated (Section 13.3).
+Verification calls that are recorded say so at the start.
+20.6 Ethics watch-list
+Community votes can carry prejudice (Section 12.3 safeguards).
+Wandering geofences and daily check-ins for children and people with dementia are
+surveillance; they stay Roadmap and opt-in with consent. The Go pendant is not a
+tracker: by default it shares location only during an alert or a drill, and any other mode
+needs the adult's own consent, or a parent's for a child.
+A discreet profile must never become a way to hide abuse of the person by the person
+who set it up; the "never inform" list is reviewed by an admin when it names a caregiver.
+21. Feature catalogue and MVP
+45 features, 19 of them Must. The Must set is the smallest build that shows the whole
+chain end to end and every new idea in this version. Change a tier with the dropdown.
+Effort: S = a day or less, M = 2-4 days, L = a week or more (est., team of 3-4).
+ID Feature Stage Criteria Effort Tier
+F1 Home button (Wi-Fi), 2 s hold Trigger C1 C5 M  Must
+SafeCircle: Super Master Document (v2)
+Page 56 of 73
+
+===== PAGE 57 =====
+ID Feature Stage Criteria Effort Tier
+F2 Long-press cancel plus verification call (simulated
+in demo)
+Trigger C1 M  Must
+F3 WhatsApp "HELP" with registry lookup Trigger C1 C5 M  Must
+F4 Caregiver trigger Trigger C1 C5 S  Should
+F5 Bystander QR on the pendant Trigger C1 C5 S  Should
+F6 Silent SOS (discreet triple press) Trigger C1 C5 S  Should
+F7 SMS keyword and missed-call trigger Trigger C1 C5 M  Roadmap
+F8 Setup portal: pairing, profile, trusted numbers,
+consent
+Setup C2 C5 M  Must
+F9 Browser Wi-Fi provisioning (SoftAP or Improv) Setup C5 M  Should
+F10 Drill mode Setup C4 S  Should
+F11 Unified incident pipeline with merging Engine C2 M  Must
+F12 Severity rules P1-P3 Engine C2 S  Should
+F13 Timers and simulated 112 escalation Engine C2 S  Must
+F14 Device signature and sequence check Engine C2 S  Should
+F15 Check-in call at the start of an alert Engine C1 C4 M  Roadmap
+F16 Tiered alerts: top 3 verified, 30 s upgrade Alert C3 M  Must
+F17 Rolling top 3 and early upgrade Alert C3 S  Should
+F18 Ranking with skill and reliability bonus Alert C3 S  Should
+F19 Team caps per case type Alert C3 S  Should
+F20 Volunteer app: alert, accept, status taps Volunteer C3 C4 M  Must
+F21 "I am available" toggle (modes later) Volunteer C3 S  Must
+F22 Wake-up location and battery layers (native app) Volunteer C3 L  Roadmap
+F23 "I'm in danger" button Volunteer C3 S  Should
+F24 Masked calling and responder chat Volunteer C3 M  Roadmap
+F25 Trust levels and Verified tag Trust C3 S  Must
+F26 Community vote and society verifier Trust C3 M  Should
+F27 DigiLocker ID and credential checks Trust C3 M  Roadmap
+SafeCircle: Super Master Document (v2)
+Page 57 of 73
+
+===== PAGE 58 =====
+Roadmap beyond the table: daily check-in for seniors living alone; fall detection; LoRa
+gateways with a society siren; real ERSS-112 integration; voice prompts and voice trigger in
+Tamil and Hindi; mass-incident mode; device attestation against fake GPS; gate
+integration.
+21.1 Criteria coverage
+ID Feature Stage Criteria Effort Tier
+F28 Mandatory tutorial and practice alert Training C3 M  Should
+F29 Full emergency tutorial library Training C3 L  Roadmap
+F30 Responder briefing and handling banner Response C5 S  Must
+F31 Smart flashcards with tap feedback Response C3 C5 M  Must
+F32 Staged disclosure enforced on the server Response All S  Must
+F33 Button status patterns (light, sound, vibration) Feedback C4 C5 M  Must
+F34 Feedback profiles (loud, calm, discreet, stealth...) Feedback C4 C5 S  Should
+F35 Family live status page Feedback C4 S  Must
+F36 Guard and authority dashboard Feedback C2 C4 M  Must
+F37 Heartbeat and low-battery alerts Reliability C2 S  Should
+F38 Retry and failed pattern on the button Reliability C1 S  Must
+F39 Go pendant: ESP32 plus GPS module (demo over
+the hotspot)
+Trigger C1 C5 M  Must
+F40 Location fusion and live updates during an alert Engine C2 C3 M  Must
+F41 Wi-Fi scan positioning through a geolocation API Engine C2 C5 S  Should
+F42 Known places (saved, named Wi-Fi networks) Setup C2 S  Should
+F43 4G Cat-1 link with SIM Trigger C1 M  Should
+F44 Bluetooth finder and make-it-beep Volunteer C3 M  Roadmap
+F45 Safe-zone mode (opt-in) Engine C5 M  Roadmap
+Criterion Delivered by
+C1 Faster initiation F1-F7, F15, F38, F39, F43
+C2 Unified dispatch F8, F11-F14, F36, F37, F40-F42
+SafeCircle: Super Master Document (v2)
+Page 58 of 73
+
+===== PAGE 59 =====
+22. Demo plan, cost and time
+The demo shows six short scenes in about 7 minutes, with timers compressed and
+labelled "demo speed". The prototype costs about ₹ 5,500-15,000 (est.), depending on the
+GPS module, and takes a team of 3-4 about 4-5 weeks part-time, or a hard-cut version in a
+24-48 hour hackathon.
+22.1 Demo scenes
+Criterion Delivered by
+C3 Volunteer coordination F16-F29, F31, F40, F44
+C4 Status updates F10, F20, F33-F36
+C5 Accessible without an app F1, F3-F6, F8, F30, F31, F33, F34, F39, F41, F45
+Scene What the audience sees Proves
+1. The press (2 min) Senior's pendant: hold, blue
+"sending", chime "received".
+Dashboard lights up. Two volunteer
+phones get the full-screen "you are
+closest" alarm, a third gets a normal
+alert. Nobody answers, so at 10 s
+(demo speed for 30 s) the third
+phone upgrades. It accepts;
+pendant turns green with the "help
+is coming" chime; family page
+shows "Priya (Verified, Nurse),
+about 3 min"
+Phone-free trigger, tiers,
+upgrade, feedback
+2. The flashcards (1
+min)
+Volunteer phone shows the
+handling banner and three chips:
+Fall, Low blood sugar, Stroke. Tap
+Low blood sugar; the card opens
+and the dashboard shows
+"Volunteer reports possible low
+blood sugar"
+Profile-aware response
+SafeCircle: Super Master Document (v2)
+Page 59 of 73
+
+===== PAGE 60 =====
+Say plainly on stage: the 112 handoff and verification call are simulated; the Go pendant
+sends over the phone hotspot instead of its own 4G; timers are compressed; the web app
+uses location only while open, and the production app uses the wake-up design in Section
+11.
+Demo kit: 2 Home buttons (one spare), 1 Go pendant prototype, 4 phones (2 volunteers, 1
+family, 1 for WhatsApp and voting), laptop for the dashboard, phone hotspot plus a backup
+hotspot, printed QR, and a pre-recorded video fallback. Rehearse at least five times on
+the hotspot.
+22.2 Prototype cost (est., verify at purchase)
+Scene What the audience sees Proves
+3. Forced cancel (1
+min)
+Long-press cancel. Dashboard
+shows the verification call;
+presenter clicks "no answer". Alert
+continues at high priority, flagged
+"possible duress", while the
+pendant stays quiet
+Duress safety
+4. No app at all (1
+min)
+Registered number sends "HELP"
+on WhatsApp: full incident
+appears. Unknown number:
+unverified flow to the guard only. A
+stranger scans the pendant QR and
+shares a location
+Face A without hardware
+5. Becoming verified
+(1 min)
+New volunteer finishes the tutorial;
+two phones receive a vouch
+request and vouch; the badge
+turns Verified
+Trust model
+6. Outdoors (1 min) Presenter takes the Go pendant
+prototype outside and presses it.
+The dashboard pin starts at the Wi-
+Fi estimate, then jumps to the GPS
+fix with a smaller accuracy circle;
+as the presenter walks, the pin and
+the volunteer's map follow
+Locating the person
+anywhere
+Item Cost ( ₹ )
+2 Home buttons plus 1 Go pendant prototype with
+a GPS module (Section 18.8)
+3,500-10,000
+SafeCircle: Super Master Document (v2)
+Page 60 of 73
+
+===== PAGE 61 =====
+22.3 Pilot cost (one society, 50-100 households, est.)
+A pilot takes 3-6 months, mostly field testing of range and battery, volunteer onboarding
+and building trust with the society and local police. Software is not the bottleneck.
+Item Cost ( ₹ )
+Tools if not owned 800-1,500
+Hosting on free tiers 0-500
+WhatsApp test number 0
+Voice provider trial for the verification call
+(optional)
+0-1,000
+Maps (OpenStreetMap, Leaflet) 0
+LLM API for optional triage 200-500
+Printing (QR stickers, posters) 200
+Total about 5,500-15,000
+Item Cost
+About 60 Home buttons and 40 Go pendants
+(mix est.)
+₹ 2-3 lakh
+3-5 LoRa gateways (if used) ₹ 15-30k
+Cloud, WhatsApp templates, SMS, voice
+calls and pendant SIM data
+₹ 8-18k per month (est.)
+ID checks through a KYC provider per check; Verify pricing
+App store accounts Apple Developer Program USD 99 per year;
+Google Play USD 25 one-time
+Volunteer accident insurance Verify quotes
+CPR practical workshops with a partner Often free through NGOs or hospitals;
+Verify
+Total about ₹ 3-4.5 lakh plus monthly costs
+SafeCircle: Super Master Document (v2)
+Page 61 of 73
+
+===== PAGE 62 =====
+22.4 Build time (team of 3-4, est.)
+24-48 hour hackathon cut: button with hold, cancel and four patterns (sending, received,
+accepted, failed); a GPS module on one button sending its fix with the alert; backend with
+tiers and demo-speed timers; volunteer web app with accept and three flashcards; family
+page; dashboard with simulated verification and 112. Volunteers are pre-seeded with
+Verified flags; WhatsApp, QR and voting only if time allows.
+Suggested split for 4 people: hardware and firmware; backend and dispatch; volunteer
+app and flashcards; portal, dashboard and slides.
+23. Roadmap, impact, KPIs and honest limits
+SafeCircle grows in three phases, and each move forward is gated by measured results,
+not by a date. The gate targets below are proposals (est.) to agree as a team.
+Component Effort
+Backend: pipeline, tiers, timers, WhatsApp
+webhook, location fusion
+6-8 days
+Setup portal and family status page 2-3 days
+Volunteer web app: alerts, accept, status,
+flashcards, vote screen
+5-6 days
+Button and pendant firmware: timings,
+patterns, polling, GPS and location payload
+6-8 days
+Dashboard with simulated verification call
+and 112
+3 days
+Content: tutorial and 6 flashcards, doctor
+review
+2 days
+Integration, testing, slides 4-5 days
+Total about 4-5 weeks part-time, or 2-3 weeks
+full-time
+SafeCircle: Super Master Document (v2)
+Page 62 of 73
+
+===== PAGE 63 =====
+Gate 1 is about the system working; Gate 2 is about real people responding in time, plus
+the legal and 112 permissions that city scale needs.
+23.1 What is working in the demo vs Roadmap
+Working in the demo: button with hold, cancel and status patterns; unified backend;
+registry and profiles; tiered alerts with the 30 s upgrade (demo speed); volunteer web app
+with accept, status and flashcards; family status page; dashboard; simulated verification
+call and 112 handoff; WhatsApp "HELP" if time allows; GPS location from the Go pendant
+prototype over the hotspot.
+Roadmap, never shown as working: native app with wake-up location; real verification
+calls; DigiLocker checks; real ERSS-112 integration; the pendant's own 4G link; LoRa; fall
+detection; voice prompts; masked calling.
+23.2 Impact
+Reaches people who cannot use an app.
+Neighbours respond in the minutes before official help; the Stockholm trial showed
+geofenced volunteer alerts raised bystander CPR before the ambulance from 48% to
+62% (Section 3.3).
+Families get live status instead of silence.
+Authorities get one complete incident instead of fragments.
+A forced cancel no longer means help stops.
+roadmap · 3 phases, 2 gates
+SafeCircle: Super Master Document (v2)
+Page 63 of 73
+
+===== PAGE 64 =====
+23.3 KPIs to measure in the pilot
+23.4 Honest limits (say these ourselves)
+112 integration and the verification call are simulated in the demo.
+Volunteer coverage will be thin at night and in new areas; the guard, family and 112
+remain the backbone.
+Wi-Fi range, button battery life and false alarms are real limits, each with a stated
+mitigation. GPS fails indoors and in basements (the Wi-Fi estimate covers many
+buildings), and the Go pendant needs a SIM plan and regular charging.
+iPhone wake-up location and Critical Alerts need Apple approval that may be refused.
+India's Good Samaritan law covers road accidents only (Section 20.4).
+KPI Target (est.) Why
+Press to first volunteer alert
+(median)
+Under 10 s The system must never be the
+slow part
+First accept within 60 s 80% of drills Gate 2
+Responder on scene before the
+ambulance
+Track and report The core promise
+Verified volunteers within 1 km of
+each registered person
+At least 3 for 90% of
+people
+Coverage gaps show where to
+recruit
+False alarms caught by cancel
+verification
+Track Tunes the countdown option
+and press timings
+Verification calls answered Track Shows whether call-based
+checks suit seniors
+Volunteers reporting noticeable
+battery drain
+Under 10% Tests the Section 11 design
+Buttons silent for over 24 h Under 2% of devices Heartbeat health
+Vote rejection rates by group No unexplained gaps Fairness check (Section 12.3)
+Location accuracy at dispatch,
+outdoors (median)
+Under 30 m Volunteers find the person
+without searching
+Press to first GPS fix (median) Under 30 s Tests the backup battery and
+assisted start
+Days between Go pendant
+charges
+3-7 days Tests the power design in
+Section 18.5
+SafeCircle: Super Master Document (v2)
+Page 64 of 73
+
+===== PAGE 65 =====
+Needs testing with real users, NGOs and disability groups; we do not claim to solve
+every disability.
+24. Risks and failure modes
+The biggest risk is not technical: it is that nobody nearby responds, or that someone
+trusted misuses the system. Every risk below has a mitigation that already exists in this
+design; the last column says where.
+Risk What goes wrong Mitigation Where
+No responder
+nearby
+Thin coverage at night or in
+new areas
+30 s upgrade, wider radius,
+guard and family calls, 112 at
+90 s; coverage KPI drives
+recruiting
+8.4, 9.2,
+23.3
+False alarms Volunteers stop trusting
+alerts
+2 s hold, verification on
+cancel, drills, caregiver
+coaching, optional
+countdown
+6, 5.1
+Volunteer
+misconduct
+A bad actor reaches a
+vulnerable person
+ID check, community vote,
+address only after
+accepting, verified-only for
+protected profiles, audit log,
+removal
+12, 19.4
+Volunteer gets
+hurt
+Violent scene, road risk "Observe and call" rule,
+safety module, "I'm in
+danger" button, walking-
+first culture
+13.1, 10.1
+Button fails
+silently
+Dead battery, no Wi-Fi Heartbeat, retry with red
+pattern; GSM or LoRa on the
+roadmap
+7, 18.7
+Phone kills the
+alert
+Battery savers, silent mode,
+Apple entitlement refused
+Setup checklist, test alert,
+SMS and voice fallback,
+time-sensitive notifications
+10.3
+Provider
+dependency
+WhatsApp pricing or policy
+change, telephony KYC
+delays
+Several channels for every
+message; start provider KYC
+early
+4, 15.1
+SafeCircle: Super Master Document (v2)
+Page 65 of 73
+
+===== PAGE 66 =====
+Risk What goes wrong Mitigation Where
+Legal liability Volunteer or platform
+blamed for an outcome
+Code of conduct, mission
+log, insurance, legal review,
+honest terms
+20.4,
+20.5
+Data breach Medical and address data
+leak
+Minimal fields, field
+encryption, retention jobs,
+access logs
+5.2, 19.4,
+20.2
+Biased vouching Tenants, workers or
+minorities kept out
+Reasons required, appeals,
+verifier path, monitored
+rates
+12.3
+Over-reliance Families wait for SafeCircle
+instead of calling 112
+"Adds to 112" messaging
+everywhere; P1 tells 112 at
+once
+8.2, 20.5
+Alert fatigue Volunteers mute the app Caps per day, quiet hours,
+fair rotation, decline reasons
+tracked
+9.2
+Mass emergency Flood or cyclone floods the
+queue
+Mass-incident mode with
+dashboard triage
+16.5
+Wrong first-aid
+advice
+A card is outdated or
+misread
+Recognised sources, doctor
+sign-off, review dates, no
+doses
+13.3, 14.4
+No funding after
+the pilot
+Buttons and running costs
+unpaid
+Open question: RWA
+subscription, CSR, municipal
+or police partnership
+26
+No GPS fix Indoors, basements, lifts Wi-Fi scan, known places,
+cell, bystander QR;
+Bluetooth finder (Roadmap)
+18.2, 16.7
+Pendant battery
+flat
+GPS and 4G drain faster
+than Wi-Fi
+GPS off between alerts,
+charging dock, 20% warning
+to the caregiver
+18.5
+Location misuse Someone uses the pendant
+to track an adult
+Location only during alerts
+and drills by default; adult
+consent for any other mode;
+access logged
+20.6
+No mobile signal Rural roads, lifts Store and retry, saved Wi-Fi
+if near, first message sent
+when signal returns
+18.4
+SafeCircle: Super Master Document (v2)
+Page 66 of 73
+
+===== PAGE 67 =====
+25. Judge Q&A and deck outline
+25.1 Anticipated questions
+Question Answer
+Why not just use 112? We extend it. We cover the minutes before
+official help, hand off to 112, and our triggers
+work without a phone. 112 already lists IoT
+and external signals as channels, so
+integration is a realistic next step.
+Is there evidence volunteers arrive in time? Yes. In Stockholm, alerting CPR-trained
+volunteers within 500 m raised bystander
+CPR before the ambulance from 48% to
+62%. GoodSAM runs the same model with
+UK ambulance services.
+What if an attacker forces a cancel? A cancel triggers a verification call. No
+answer, a wrong PIN or the duress PIN keeps
+the alert alive at high priority, while the
+button stays quiet.
+Accidental presses? 2 s hold to trigger, longer hold to cancel,
+verification, monthly drills, optional
+countdown.
+How does the person know help is coming? Light, sound and vibration for each stage:
+sending, received, accepted, arriving,
+arrived. Works for blind and deaf users.
+Won't "I am available" drain volunteers'
+batteries?
+No constant GPS. A coarse area refreshed
+about hourly or on movement, one exact
+reading only when an alert is near them, live
+GPS only after they accept, stopping on
+arrival.
+Why is the nearest person not always first? Tier 1 is the 3 nearest verified volunteers,
+with a small bonus for matching skills such
+as a nurse for a medical case. Everyone else
+is alerted at the same time and upgraded at
+30 s.
+SafeCircle: Super Master Document (v2)
+Page 67 of 73
+
+===== PAGE 68 =====
+Question Answer
+Can volunteers be trusted? Government ID through DigiLocker, approval
+by neighbours who know them or a society
+verifier, address only after accepting, audit
+logs, removal for misconduct.
+Isn't a neighbourhood vote biased? It can be. Concerns need reasons, rejections
+can be appealed, a verifier path stays open
+and rejection rates are monitored.
+What do volunteers do on arrival? Smart flashcards predict the 3 likely
+situations from the profile and history; they
+tap what they see and follow the card. CPR
+is always one tap away.
+What if nobody responds? Guard and family are alerted from second
+zero; 112 is told at 90 s, or at once for critical
+cases.
+Privacy? Minimal fields, staged disclosure enforced
+on the server, coarse volunteer location,
+short retention, DPDP-ready consent
+including parents and guardians.
+Are volunteers legally protected? Only partly. India's Good Samaritan section
+covers road accidents. We use a code of
+conduct, insurance and legal review, and we
+say this openly.
+How does someone without the button raise
+an alarm?
+WhatsApp "HELP" from a registered
+number, a caregiver message, or a stranger
+scanning the pendant QR.
+Is the 112 link real? Simulated in the demo; real integration
+needs state permission.
+What does it cost? Prototype about ₹ 5,500-15,000; pilot about
+₹ 3-4.5 lakh plus monthly running costs for
+50-100 homes (est.).
+How do you find someone who is not at
+home?
+The Go pendant has GPS and 4G. It sends
+the best location it has within seconds (a
+saved Wi-Fi place, a Wi-Fi scan or the cell
+tower), refines it with a GPS fix, and keeps
+updating while the alert is open.
+SafeCircle: Super Master Document (v2)
+Page 68 of 73
+
+===== PAGE 69 =====
+25.2 Deck outline (12-14 slides)
+1. Title and one-line pitch (Section 1)
+2. The broken chain and the hidden requirement (1)
+3. Who we serve: four user groups (17)
+4. Existing systems, prior art and gaps (3)
+5. Two faces, one backend (2)
+6. Face A: triggers and setup portal (4, 5)
+7. Press, cancel and verification call (6)
+8. Status the person can feel (7)
+9. Tiered alerting and ranking (9, 8)
+10. Face B: the volunteer app and battery design (10, 11)
+11. Trust, training and smart flashcards (12, 13, 14)
+12. Architecture, hardware and GPS location (18, 19)
+13. Demo flow (22)
+14. Roadmap, KPIs, cost and honest limits (22, 23)
+For a 7-slide version: merge 2-3, 4-5, 6-8, 9-11, 12-13, keep 1 and 14.
+Style from v1: deep navy, teal and amber; Cambria headings, Calibri body. The cyclone
+deck was a style reference only.
+Placeholders still to fill: final project name, team name and members, team ID, photos of
+the prototype and dashboard.
+Question Answer
+Isn't the pendant a tracker? Not by default. It shares location only during
+an alert or a drill; any other mode needs the
+adult's own consent, or a parent's for a child.
+Why not GPS in every button? A wall or bedside button never moves, so
+the registered address is exact and the
+battery lasts far longer. GPS and 4G go only
+in the pendant people wear outside.
+What if a beep would put a girl in more
+danger?
+Stealth mode: the button confirms each
+stage with light only, with no sound, no
+vibration and no calls to her phone, so
+people nearby cannot tell help is coming.
+SafeCircle: Super Master Document (v2)
+Page 69 of 73
+
+===== PAGE 70 =====
+26. Open questions for the team
+Every "Decision needed" in this document is listed here. Tick each one off once the team
+agrees, and update the section it points to.
+26.1 Product decisions
+26.2 Build and demo
+26.3 Pilot and partners
+Send instantly on a 2 s hold, or keep a 3 s countdown before sending? (6.1)
+After a cancel that cannot be verified, should the button stay quiet (safer against an
+attacker) or show "help still coming" (more reassuring)? (6.2)
+Use a duress PIN on the verification call, or only "press 1 safe, press 9 help"? (6.2)
+Unregistered "HELP" messages: guard desk only, or volunteers too? (4, T2)
+Responders per case type: up to 3 for collapse, 1 plus backup for a fall, and so on? (8.5)
+Timers: 30 s upgrade and 112 at 90 s? (8.4)
+Tier 1 size (3) and radius steps (1.5, 3, 5 km)? (9.1, 9.2)
+Can an unverified volunteer ever be the sole responder for a child or a person with a
+cognitive disability? (9.2)
+Community vote pass rule: at least 3 vouches, two thirds of non-abstain votes, within 7
+days? (12.3)
+Retention periods for location fixes, chats and incident records? (11.4, 20.2)
+Stealth mode: lights only as specified, or also a silent vibration only she can feel? How
+dim should the light be, and where on the pendant should it sit? (7.2)
+Demo format and deadline: live on stage, or video plus slides?
+Team size and role split (suggested split in 22.4)
+Stack: Node or Python; React or plain HTML; Flutter or React Native for the pilot app
+Which two personas to demo (for example a senior and a non-verbal child)?
+Family and volunteer alerts in the demo: WhatsApp templates, Telegram, or app only?
+Final project name and team details
+Which city, neighbourhood or society hosts the pilot?
+Doctor or medical college to review tutorials and flashcards (13.3)
+Lawyer to review ID checks, consent and volunteer liability (20)
+Partner for hands-on CPR workshops (Red Cross, hospital, NGO)
+Local police or PSAP contact for a future 112 link
+SafeCircle: Super Master Document (v2)
+Page 70 of 73
+
+===== PAGE 71 =====
+26.4 GPS and the Go pendant (v2.1)
+27. Sources and caveats
+Sources consulted for v2 on 1 Oct 2026, grouped by topic. v1 sources are listed separately
+and were not re-checked.
+27.1 India: 112 and ERSS
+MHA: Emergency Response Support System (10 channels, including IoT and external
+signals)
+MHA: Nirbhaya/ERSS section (ERSS 2.0 in 24 states and UTs)
+Rajya Sabha answer, 20 Dec 2023 (ERSS in all 36 states and UTs)
+112.gov.in: About ERSS
+OneIndia: SHOUT volunteers
+27.2 Prior art and evidence
+GoodSAM FAQ
+NIAS GoodSAM public FAQ (500 m, 15 s, battery slider, code of conduct)
+St John NZ: GoodSAM and GoodSAM poster
+Karolinska Institutet: SMS Lifesavers and CBS News on the trial
+27.3 Platform rules
+Meta: WhatsApp Business Platform pricing
+Android: foreground service restrictions
+Google Play: full-screen intent policy
+Apple: Location Push Service Extension
+Funding after the pilot: RWA subscription, CSR, municipal or police partnership?
+Pilot pendant route: LilyGO T-A7670G with GPS, or our own board? (18.6)
+Demo GPS module: budget NEO-6M or ATGM336H, or low-power MAX-M10S? (18.6)
+Do we need NavIC support? (18.3)
+IoT SIM provider and data plan (18.4)
+Location update interval while moving and while still (18.2)
+Raise to P1 when a child's pendant moves at vehicle speed? (8.2, 16.7)
+Any location mode beyond alerts (safe-zone), and who may switch it on (5.1, 20.6)
+Charging target and dock design (18.5)
+SafeCircle: Super Master Document (v2)
+Page 71 of 73
+
+===== PAGE 72 =====
+Apple forums: location push on locked devices
+Apple forums: Critical Alerts eligibility
+27.4 Providers
+Exotel Voice v1 API and Exotel services
+Home Assistant: ESP Web Tools and Improv Wi-Fi
+Cashfree: DigiLocker FAQ
+27.5 Law, data protection and health
+SCC Online: DPDP Rules 2025 highlights
+AMLEGALS: DPDP Rules timeline
+Supreme Court order, 26 May 2026 (history of Section 134A)
+Daily Star: Section 134A explainer
+Guide to the NMC Indian Medical Register
+American Heart Association: CPR guideline FAQ
+27.6 v1 sources (not re-checked)
+Vikaspedia (ERSS and Kavalan pages), Business Standard (112 rollout, 2019), Andaman
+Sheekha, PIB and MHA summary via journalsofindia.com, Anantamias explainer, The News
+Minute (Kavalan launch), DT Next (Kaaval Karangal), Meta and 360dialog WhatsApp docs,
+Twilio support notes on India SMS, MSG91 and 8x8 inbound SMS docs.
+27.7 Caveats
+Some sources are secondary (explainers, vendor docs, developer forums). Re-check
+anything that becomes a slide claim.
+The AHA page reflects the 2015 guideline cycle; confirm against the newest AHA,
+ILCOR or Indian Resuscitation Council guidance.
+Platform rules (Android, Apple, WhatsApp) change often; re-check before building.
+Prices, timings, targets and component specs marked (est.) are estimates.
+Nothing here is legal advice; get a qualified review of ID checks, consent and volunteer
+liability.
+No real 112 or ERSS integration exists in this project. Any handoff shown is a simulation.
+Phone-maker SOS features and paid family-safety apps were not researched.
+27.8 GPS, cellular and positioning (v2.1)
+LilyGO T-A7670G and T-A7670 series FAQ (bands, GPS version, data-only)
+SafeCircle: Super Master Document (v2)
+Page 72 of 73
+
+===== PAGE 73 =====
+Probots: T-A7670G R2 with GPS (Indian price)
+SparkFun MAX-M10S and Tanotis listing (start times, power, Indian price)
+SparkFun SAM-M10Q (accuracy, aided start, current)
+Hubtronics: Quectel L89HA-S90 (NavIC module)
+Telit: NavIC and AIS-140
+Google Geolocation API and request and response examples
+ESPWifiLocation library (ESP32 Wi-Fi scan to the Geolocation API)
+Module prices are retail listings seen on 1 Oct 2026. GPS accuracy and start times are
+datasheet figures; test in real streets, buildings and pockets before quoting them.
+SafeCircle: Super Master Document (v2)
+Page 73 of 73
