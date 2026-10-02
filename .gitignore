@@ -3,6 +3,7 @@ dist/
 *.tsbuildinfo
 .env
 .env.local
+.safecircle_pg*
 coverage/
 playwright-report/
 test-results/
