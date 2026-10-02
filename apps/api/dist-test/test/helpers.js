@@ -5,13 +5,27 @@
  * into the Fastify app, so routes, SQL, constraints and the disclosure guard are
  * all exercised together. No network is used.
  */
-process.env.NODE_ENV = 'test';
-process.env.DEMO_TIME_SCALE = process.env.DEMO_TIME_SCALE ?? '1';
 import { createHmac } from 'node:crypto';
 import { buildApp } from '../src/app.js';
+import { config } from '../src/config.js';
 import { closePool, pool } from '../src/db/pool.js';
 import { migrate } from '../src/db/migrate.js';
 import { seed, DEMO_DEVICE_KEYS } from '../src/seed/seed.js';
+/*
+ * NODE_ENV MUST already be `test` by the time this module loads.
+ *
+ * Setting it here would be too late: ES module imports are hoisted and
+ * evaluated before any top-level statement, so `src/config.ts` would already
+ * have read the old value - and `migrate({reset:true})` below would then drop
+ * the schema of the DEVELOPMENT database.
+ *
+ * `npm run test` sets it on the command line. This guard makes the failure loud
+ * and immediate rather than silently destructive.
+ */
+if (!config.isTest) {
+    throw new Error('Refusing to run: NODE_ENV is not "test", so these tests would reset ' +
+        `${config.databaseUrl}. Run them with "npm test".`);
+}
 let app = null;
 /** One app and one migrated schema for the whole file; data reset per test. */
 export async function getApp() {

@@ -15,6 +15,19 @@ test below names the requirement it proves.
 
 `npm test` runs unit + integration + contract. `npm run test:e2e` adds Playwright.
 
+### Always run the suite through `npm test`
+
+`NODE_ENV=test` is set **on the command line**, not inside a test file, and this
+is not a style preference. ES module imports are hoisted and evaluated before any
+top-level statement, so an assignment in `test/helpers.ts` would run *after*
+`src/config.ts` had already read the variable — the suite would silently select
+the **development** database and `migrate({reset: true})` would drop its schema.
+
+`test/helpers.ts` asserts `config.isTest` and throws with the database name if it
+is false, so this failure is loud and harmless rather than quiet and destructive.
+Integration tests also run serially (`--test-concurrency=1`) because every file
+resets the one shared test schema.
+
 ## 2. Domain unit tests (the ones that matter)
 
 **Severity (FR-INC-3)** — a press is P2; cardiac history + unanswered check-in is P1; caregiver

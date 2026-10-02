@@ -33,7 +33,7 @@ export async function buildApp() {
             ],
         },
         // A life-safety endpoint should not fail on a trailing slash.
-        ignoreTrailingSlash: true,
+        routerOptions: { ignoreTrailingSlash: true },
         bodyLimit: 256 * 1024,
     });
     await app.register(cors, { origin: true });

@@ -34,7 +34,7 @@ export async function buildApp(): Promise<FastifyInstance> {
       ],
     },
     // A life-safety endpoint should not fail on a trailing slash.
-    ignoreTrailingSlash: true,
+    routerOptions: { ignoreTrailingSlash: true },
     bodyLimit: 256 * 1024,
   });
 

@@ -150,6 +150,12 @@ npm run test:api      # routes against a real throwaway Postgres schema
 Integration tests run serially (`--test-concurrency=1`) because they share one
 test schema which each file resets.
 
+**Run them through `npm test`, never `node --test` directly.** The script sets
+`NODE_ENV=test` before Node starts, which is what points the suite at
+`safecircle_test`. Running the compiled tests by hand selects the *development*
+database and resets its schema; `test/helpers.ts` refuses to start in that case
+and names the database it would have wiped.
+
 ## 6. Firmware
 
 `firmware/home-button` and `firmware/go-pendant` are Arduino sketches for the
@@ -169,5 +175,6 @@ Build order and the field test plan are in master document §18.9.
 |---------|-------|
 | `Unsupported state or unable to authenticate data` | The seed and the server used different `FIELD_ENCRYPTION_KEY` values. Run both with the same `.env`, then `npm run db:reset && npm run db:seed`. |
 | A press returns 409 | The sequence number was replayed. The simulator persists its counter in the temp directory; delete `safecircle-sim-sequences.json` to reset. |
+| `Refusing to run: NODE_ENV is not "test"` | The tests were started directly instead of through `npm test`. That guard exists to stop the suite resetting the development database. |
 | No volunteers alerted | Check the `dispatched` event's `excluded` list on the dashboard — it names the reason for every volunteer who was skipped. |
 | The volunteer app gets no alert | It only receives pushes while the tab is open; that is a real limit of the PWA, and why the pilot needs a native app. |
