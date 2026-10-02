@@ -7,6 +7,11 @@ Legend — `[ ]` not started · `[~]` in progress · `[x]` done · `S` ≤1 day 
 
 ---
 
+> **For the audited, per-feature status — including the known gaps in what is
+> built and how each pending feature will be implemented — see
+> [09-feature-status.md](09-feature-status.md).** This document is the phase plan;
+> that one is the ground truth.
+
 ## Status at a glance
 
 **Iteration 1 is complete: all 19 `Must` features are built and tested.**

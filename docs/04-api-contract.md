@@ -3,6 +3,10 @@
 Base: `http://localhost:4000` (demo). All bodies JSON. Times are ISO-8601 UTC.
 Any response that reflects a simulated capability carries `"simulated": true` (NFR-14).
 
+Endpoints marked **PLANNED** are specified here but **not implemented yet**.
+Everything else is live and covered by the integration suite. See
+`09-feature-status.md` for what is built and what is coming.
+
 ## Auth
 
 | Caller | Scheme |
@@ -35,6 +39,8 @@ The `pattern` is already transformed for the person's feedback profile, so firmw
 
 ### `POST /api/device/:device_id/location` — updates while an incident is open.
 ### `POST /api/device/:device_id/heartbeat` — link health + battery, no location.
+### `GET /api/device/:device_id/config` — press timings and feedback profile, read
+at boot so a team decision never needs a reflash.
 
 ## 2. Messaging triggers (Face A)
 
@@ -70,9 +76,10 @@ The matching `GET /api/bystander/:qr_code` returns **only** `{"prompt":"This per
 | GET | `/api/incidents/:id/flashcards` | top-3 ranked + always-on CPR + symptom picker |
 | POST | `/api/incidents/:id/card-selection` | `{card_key}` → sets `volunteer_observed_type` |
 | POST | `/api/incidents/:id/status` | `on_my_way \| arrived \| need_backup \| handed_to_ambulance \| resolved \| cant_attend` |
-| POST | `/api/volunteer/danger` | volunteer's own SOS |
-| GET | `/api/volunteer/me` | trust level, badges, pending votes |
-| POST | `/api/votes` | community vouch |
+| POST | `/api/volunteer/danger` | **PLANNED (F23)** — volunteer's own SOS |
+| GET | `/api/volunteer/me` | trust level, badges, Tier 1 eligibility |
+| POST | `/api/volunteer/tutorial/complete` | satisfies the availability gate (FR-VOL-8) |
+| POST | `/api/votes` | **PLANNED (F26)** — community vouch |
 
 **Pre-accept payload** (the whole object — there is nothing to strip):
 ```json
@@ -84,7 +91,8 @@ The matching `GET /api/bystander/:qr_code` returns **only** `{"prompt":"This per
 ## 5. Family
 
 `GET /api/family/:token/status` → received → accepted (responder name, badge, skill, ETA) →
-arrived → resolved. Never a volunteer position (FR-FAM-2).
+arrived → resolved. Never a volunteer position (FR-FAM-2). Opening it also stops
+the 60 s "nobody has seen this" call.
 `POST /api/family/:token/on-my-way` · `POST /api/family/:token/false-alarm` (runs verification —
 does **not** cancel) · `POST /api/family/:token/share-medical-summary`.
 `WS /ws/family/:token`.
@@ -93,15 +101,18 @@ does **not** cancel) · `POST /api/family/:token/share-medical-summary`.
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| POST | `/api/guard/shift` | on/off duty |
-| GET | `/api/guard/incidents/:id` | guard view incl. access secrets (audited) |
-| POST | `/api/guard/incidents/:id/tasks/:task` | gate opened, lift held, doorstep check done |
+| POST | `/api/guard/shift` | **PLANNED** — on/off duty. Guards are seeded on duty today |
+| GET | `/api/guard/incidents/:id` | **Live at `/api/incidents/:id/briefing`**, which returns the guard view (incl. access secrets, audited) when the caller is an on-duty guard |
+| POST | `/api/guard/incidents/:id/tasks/:task` | **PLANNED** — gate opened, lift held, doorstep check done |
 | GET | `/api/dashboard/incidents` | list + filters, stale flags |
 | GET | `/api/dashboard/incidents/:id` | full timeline, dispatch table with rank inputs, locations with source+accuracy |
 | POST | `/api/dashboard/incidents/:id/verification-outcome` | **demo**: drive the simulated IVR `{outcome}` |
 | GET | `/api/dashboard/incidents/:id/handoff-112` | the packet, `"simulated": true` |
 | POST | `/api/dashboard/incidents/:id/close` | `{outcome}` |
 | GET | `/api/dashboard/outbox` | everything the simulated providers "sent" |
+| GET | `/api/dashboard/kpis` | the §23.3 KPIs, computed from the event log |
+| GET | `/api/dashboard/audit/:personId` | who viewed this person's data, and when |
+| GET | `/api/meta` | which capabilities on this deployment are simulated |
 | WS | `/ws/dashboard` | live incident stream |
 
 ## 7. Error shape

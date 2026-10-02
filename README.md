@@ -35,6 +35,7 @@ volunteer will come.
 | [04-api-contract.md](docs/04-api-contract.md) | Every endpoint, auth scheme, error shape, rate limits |
 | [05-test-plan.md](docs/05-test-plan.md) | Test levels, the failure-path tests that matter, quality gates |
 | [06-backlog-and-phases.md](docs/06-backlog-and-phases.md) | All 45 features, phase plan, gates, KPI instrumentation |
+| **[09-feature-status.md](docs/09-feature-status.md)** | **What is built, what is pending, and how each remaining feature will be built** |
 | [07-decision-log.md](docs/07-decision-log.md) | Every §26 open question: decided, default or still open |
 | [08-run-book.md](docs/08-run-book.md) | How to run it, the six-scene demo script, troubleshooting |
 | [source-document-v2.txt](docs/source-document-v2.txt) | Extracted text of the master document |
@@ -73,8 +74,10 @@ tools/sim         a headless device simulator for scripted demos.
 ## Status
 
 **Iteration 1 is complete: all 19 `Must` features are built and tested.**
-160 automated tests pass. `Should` and `Roadmap` work is scheduled in
-[06-backlog-and-phases.md](docs/06-backlog-and-phases.md).
+160 automated tests pass. 30 of the master document's 54 features are done,
+5 are partial and 19 are not started —
+[09-feature-status.md](docs/09-feature-status.md) has the full audit, the known
+gaps in what is built, and the implementation approach for everything pending.
 
 ```bash
 npm test
