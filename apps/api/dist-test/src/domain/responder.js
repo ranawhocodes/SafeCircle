@@ -143,8 +143,25 @@ export async function alertsFor(volunteerId) {
     if (!volunteer)
         return [];
     const out = [];
-    for (const incident of await listOpenAlertable()) {
-        const dispatch = await findDispatch(incident.id, volunteerId);
+    const openIncidents = await listOpenAlertable();
+    for (const incident of openIncidents) {
+        let dispatch = await findDispatch(incident.id, volunteerId);
+        if (!dispatch && incident.personId && !incident.flags.drill && incident.severity !== 'unverified') {
+            // If this available volunteer was not in the initial dispatch (e.g. they were off duty),
+            // check if they are eligible now and dispatch them!
+            const isAvailable = volunteer.availabilityMode === 'available_now' ||
+                (volunteer.availabilityMode === 'available_until' &&
+                    volunteer.availableUntil &&
+                    volunteer.availableUntil > new Date());
+            if (isAvailable && !volunteer.suspendedAt && volunteer.tutorialCompletedAt) {
+                const person = await findPerson(incident.personId);
+                if (person) {
+                    const { dispatchIncident } = await import('../services/dispatch.js');
+                    await dispatchIncident(incident, person);
+                    dispatch = await findDispatch(incident.id, volunteerId);
+                }
+            }
+        }
         if (!dispatch || dispatch.response !== null || dispatch.stoodDownAt !== null)
             continue;
         if (!incident.personId)
@@ -162,7 +179,7 @@ export async function alertsFor(volunteerId) {
     }
     return out;
 }
-async function listOpenAlertable() {
+export async function listOpenAlertable() {
     const { listOpenIncidents } = await import('../db/repositories/incidents.js');
     return listOpenIncidents(50);
 }

@@ -10,3 +10,5 @@ test-results/
 .DS_Store
 firmware/**/.pio/
 firmware/**/secrets.h
+*.lnk
+delete/

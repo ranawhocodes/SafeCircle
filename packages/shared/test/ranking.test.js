@@ -71,15 +71,18 @@ test('FR-ALT-1: Tier 1 is exactly the 3 nearest VERIFIED volunteers', () => {
   assert.equal(plan.sparse, false);
 });
 
-test('unverified volunteers are alerted at the same moment, just at Tier 2', () => {
+test('F16 two-priority: unverified volunteers backfill Tier 1 when verified are sparse within close proximity', () => {
   const candidates = [
     volunteer({ id: 'u1', trustLevel: 0, ...eastOf(person.lat, person.lng, 50) }),
-    volunteer({ id: 'v1', trustLevel: 2, ...eastOf(person.lat, person.lng, 900) }),
+    volunteer({ id: 'v1', trustLevel: 2, ...eastOf(person.lat, person.lng, 200) }),
+    volunteer({ id: 'v2', trustLevel: 2, ...eastOf(person.lat, person.lng, 900) }),
   ];
   const plan = planTiers(candidates, person, ctx, 1500);
-  assert.deepEqual(plan.tier1.map((r) => r.volunteer.id), ['v1']);
-  assert.deepEqual(plan.tier2.map((r) => r.volunteer.id), ['u1']);
-  assert.equal(plan.tier1.length + plan.tier2.length, 2, 'nobody nearby is left out');
+  // v1 (verified within 500m) fills slot 1; u1 (unverified within 500m) fills slot 2 (backfill).
+  // v2 (at 900m) is beyond closeProximityM (500m), so it is placed in Tier 2.
+  assert.deepEqual(plan.tier1.map((r) => r.volunteer.id), ['v1', 'u1']);
+  assert.deepEqual(plan.tier2.map((r) => r.volunteer.id), ['v2']);
+  assert.equal(plan.tier1.length + plan.tier2.length, 3, 'nobody nearby is left out');
 });
 
 test('FR-ALT-6: fewer than 3 verified volunteers marks the plan sparse so the radius widens', () => {
@@ -153,6 +156,23 @@ test('FR-ALT-3: a Tier 1 decline promotes the next nearest verified volunteer im
   const { promoted, tier1 } = promoteAfterDecline(plan, 'v2');
   assert.equal(promoted.volunteer.id, 'v4', 'the next VERIFIED volunteer, not the closer unverified one');
   assert.deepEqual(tier1.map((r) => r.volunteer.id), ['v1', 'v3', 'v4']);
+});
+
+test('F17: when no verified volunteer remains in Tier 2, an unverified one is promoted', () => {
+  // Only 3 verified and 1 unverified — all verified start in Tier 1.
+  const candidates = [
+    volunteer({ id: 'v1', trustLevel: 2, ...eastOf(person.lat, person.lng, 100) }),
+    volunteer({ id: 'v2', trustLevel: 2, ...eastOf(person.lat, person.lng, 200) }),
+    volunteer({ id: 'v3', trustLevel: 2, ...eastOf(person.lat, person.lng, 300) }),
+    volunteer({ id: 'u1', trustLevel: 1, ...eastOf(person.lat, person.lng, 150) }),
+  ];
+  const plan = planTiers(candidates, person, ctx, 1500);
+  // v1, v2, v3 fill Tier 1 (verified); u1 is in Tier 2.
+  assert.deepEqual(plan.tier1.map((r) => r.volunteer.id), ['v1', 'v2', 'v3']);
+  const { promoted, tier1 } = promoteAfterDecline(plan, 'v2');
+  // No verified left in Tier 2, so the unverified u1 is promoted.
+  assert.equal(promoted.volunteer.id, 'u1', 'falls back to an unverified volunteer');
+  assert.deepEqual(tier1.map((r) => r.volunteer.id), ['v1', 'v3', 'u1']);
 });
 
 test('FR-VOL-4: a harassment case warns against confronting; stealth adds arriving quietly', () => {

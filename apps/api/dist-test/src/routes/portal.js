@@ -15,6 +15,12 @@ export async function portalRoutes(app) {
             return reply.code(400).send({ error: { code: 'bad_request', message: 'Phone required.' } });
         }
         const role = req.body.role ?? 'caregiver';
+        const subjectId = await resolveSubject(role, phone);
+        if (!subjectId) {
+            return reply
+                .code(404)
+                .send({ error: { code: 'not_registered', message: 'This number is not registered.' } });
+        }
         const code = await issueOtp(phone, role);
         // In a real deployment the code is sent by SMS. In this build it is
         // returned outside production so a demo needs no telephony account - and
@@ -32,14 +38,14 @@ export async function portalRoutes(app) {
         if (!phone || !code) {
             return reply.code(400).send({ error: { code: 'bad_request', message: 'Phone and code required.' } });
         }
-        if (!(await consumeOtp(phone, role, code))) {
-            return reply.code(401).send({ error: { code: 'bad_code', message: 'That code is not valid.' } });
-        }
         const subjectId = await resolveSubject(role, phone);
         if (!subjectId) {
             return reply
                 .code(404)
                 .send({ error: { code: 'not_registered', message: 'This number is not registered.' } });
+        }
+        if (!(await consumeOtp(phone, role, code))) {
+            return reply.code(401).send({ error: { code: 'bad_code', message: 'That code is not valid.' } });
         }
         const token = await createSession(role, subjectId);
         return reply.send({ ok: true, token, subjectType: role, subjectId });
@@ -327,6 +333,101 @@ export async function portalRoutes(app) {
             notice: 'The bystander page never shows a name, address or medical note.',
         });
     });
+    /** Volunteer signup: create a new volunteer and return a session. */
+    app.post('/api/auth/volunteer/signup', async (req, reply) => {
+        const { name, phone, languages, skills, lat, lng, isWoman, transport } = req.body ?? {};
+        if (!name || !phone) {
+            return reply.code(400).send({ error: { code: 'bad_request', message: 'Name and phone are required.' } });
+        }
+        // Check if phone is already registered
+        const existing = await one('SELECT id FROM volunteers WHERE phone = $1', [phone]);
+        if (existing) {
+            // Update the existing volunteer's name if they're signing up again
+            await pool.query('UPDATE volunteers SET name = $1 WHERE id = $2', [name, existing.id]);
+            if (lat != null && lng != null) {
+                await pool.query('UPDATE volunteers SET home_lat = $1, home_lng = $2 WHERE id = $3', [lat, lng, existing.id]);
+                const { coarseCell } = await import('@safecircle/shared');
+                const cell = coarseCell(lat, lng);
+                await pool.query(`INSERT INTO volunteer_zones (volunteer_id, cell_lat, cell_lng, updated_at)
+           VALUES ($1,$2,$3, now())
+           ON CONFLICT (volunteer_id) DO UPDATE SET cell_lat = $2, cell_lng = $3, updated_at = now()`, [existing.id, cell.cellLat, cell.cellLng]);
+            }
+            const token = await createSession('volunteer', existing.id);
+            return reply.send({ ok: true, token, volunteerId: existing.id, isNew: false });
+        }
+        const id = newId('vol');
+        const societyId = 'soc_shanti_niketan';
+        await pool.query(`INSERT INTO volunteers
+         (id, name, phone, trust_level, languages, is_woman, home_lat, home_lng,
+          society_id, transport, availability_mode)
+       VALUES ($1,$2,$3,0,$4,$5,$6,$7,$8,$9,'off')`, [id, name, phone, languages ?? ['en'], isWoman ?? null, lat ?? null, lng ?? null, societyId, transport ?? 'walk']);
+        // Add skills
+        if (skills?.length) {
+            for (const skill of skills) {
+                await pool.query(`INSERT INTO volunteer_skills (volunteer_id, skill, verified_at) VALUES ($1,$2, now())`, [id, skill]);
+            }
+        }
+        // Set zone if location provided
+        if (lat != null && lng != null) {
+            const { coarseCell } = await import('@safecircle/shared');
+            const cell = coarseCell(lat, lng);
+            await pool.query(`INSERT INTO volunteer_zones (volunteer_id, cell_lat, cell_lng, updated_at) VALUES ($1,$2,$3, now())`, [id, cell.cellLat, cell.cellLng]);
+        }
+        const token = await createSession('volunteer', id);
+        return reply.send({ ok: true, token, volunteerId: id, isNew: true });
+    });
+    /** Update volunteer profile from the mobile app onboarding flow. */
+    app.patch('/api/volunteer/profile', async (req, reply) => {
+        const session = await requireSession(req, reply, ['volunteer', 'guard']);
+        if (!session)
+            return;
+        const updates = [];
+        const params = [];
+        let paramIdx = 1;
+        const { name, languages, isWoman, transport, lat, lng, skills } = req.body ?? {};
+        if (name !== undefined) {
+            updates.push(`name = $${paramIdx++}`);
+            params.push(name);
+        }
+        if (languages !== undefined) {
+            updates.push(`languages = $${paramIdx++}`);
+            params.push(languages);
+        }
+        if (isWoman !== undefined) {
+            updates.push(`is_woman = $${paramIdx++}`);
+            params.push(isWoman);
+        }
+        if (transport !== undefined) {
+            updates.push(`transport = $${paramIdx++}`);
+            params.push(transport);
+        }
+        if (lat !== undefined && lng !== undefined) {
+            updates.push(`home_lat = $${paramIdx++}`);
+            params.push(lat);
+            updates.push(`home_lng = $${paramIdx++}`);
+            params.push(lng);
+        }
+        if (updates.length > 0) {
+            params.push(session.subjectId);
+            await pool.query(`UPDATE volunteers SET ${updates.join(', ')} WHERE id = $${paramIdx}`, params);
+        }
+        // Update zone if location changed
+        if (lat !== undefined && lng !== undefined) {
+            const { coarseCell } = await import('@safecircle/shared');
+            const cell = coarseCell(lat, lng);
+            await pool.query(`INSERT INTO volunteer_zones (volunteer_id, cell_lat, cell_lng, updated_at)
+         VALUES ($1,$2,$3, now())
+         ON CONFLICT (volunteer_id) DO UPDATE SET cell_lat = $2, cell_lng = $3, updated_at = now()`, [session.subjectId, cell.cellLat, cell.cellLng]);
+        }
+        // Update skills
+        if (skills !== undefined) {
+            await pool.query('DELETE FROM volunteer_skills WHERE volunteer_id = $1', [session.subjectId]);
+            for (const skill of skills) {
+                await pool.query(`INSERT INTO volunteer_skills (volunteer_id, skill, verified_at) VALUES ($1,$2, now())`, [session.subjectId, skill]);
+            }
+        }
+        return reply.send({ ok: true });
+    });
     /** Device heartbeat health for the caregiver home page (FR-FDB-6). */
     app.get('/api/portal/device-health', async (req, reply) => {
         const session = await requireSession(req, reply, ['caregiver']);
@@ -342,7 +443,15 @@ async function resolveSubject(role, phone) {
     }
     if (role === 'volunteer') {
         const row = await one('SELECT id FROM volunteers WHERE phone = $1', [phone]);
-        return row?.id ?? null;
+        // Auto-register new volunteers for easy demo/signup flow
+        if (!row) {
+            const id = newId('vol');
+            await pool.query(`INSERT INTO volunteers
+           (id, name, phone, trust_level, languages, society_id, availability_mode)
+         VALUES ($1, $2, $3, 0, $4, $5, 'off')`, [id, phone.slice(-4), phone, ['en'], 'soc_shanti_niketan']);
+            return id;
+        }
+        return row.id;
     }
     if (role === 'guard') {
         const row = await one('SELECT id FROM guards WHERE phone = $1', [phone]);

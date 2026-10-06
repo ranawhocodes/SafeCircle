@@ -170,8 +170,17 @@ function VolunteerHome({ onSignOut }: { onSignOut: () => void }): ReactNode {
       setAndPersistActiveIncident(null);
       reloadAlerts();
     };
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'safecircle:demo-reset') {
+        handleReset();
+      }
+    };
     window.addEventListener('safecircle:demo-reset', handleReset);
-    return () => window.removeEventListener('safecircle:demo-reset', handleReset);
+    window.addEventListener('storage', handleStorage);
+    return () => {
+      window.removeEventListener('safecircle:demo-reset', handleReset);
+      window.removeEventListener('storage', handleStorage);
+    };
   }, [setAndPersistActiveIncident, reloadAlerts]);
 
   /**
@@ -305,7 +314,15 @@ function VolunteerHome({ onSignOut }: { onSignOut: () => void }): ReactNode {
         </div>
       )}
 
-      {me && <AvailabilityCard me={me} onChanged={() => void loadMe()} />}
+      {me && (
+        <AvailabilityCard
+          me={me}
+          onChanged={() => {
+            void loadMe();
+            void reloadAlerts();
+          }}
+        />
+      )}
       {me && <ProfileCard me={me} onSignOut={onSignOut} onChanged={() => void loadMe()} />}
       {!me && Boolean(error) && (
         <div style={{ marginTop: '1rem', textAlign: 'center' }}>
@@ -998,17 +1015,6 @@ function AvailabilityCard({ me, onChanged }: { me: Me; onChanged: () => void }):
     setError(null);
     try {
       await api.post('/api/volunteer/availability', { mode, until }, 'volunteer');
-      // Report the current zone, so ranking has something fresh to work with.
-      if (mode !== 'off' && navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          (pos) => {
-            void api
-              .post('/api/volunteer/location', { lat: pos.coords.latitude, lng: pos.coords.longitude }, 'volunteer')
-              .catch(() => {});
-          },
-          () => {},
-        );
-      }
       onChanged();
     } catch (err) {
       setError(err);

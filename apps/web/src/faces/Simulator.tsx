@@ -167,10 +167,18 @@ export function Simulator(): ReactNode {
   const resetDevice = useCallback(async (): Promise<void> => {
     try {
       await fetch(`/api/device/${device.id}/reset-status`, { method: 'POST' });
+      await fetch('/api/device/reset-all', { method: 'POST' });
+      window.dispatchEvent(new CustomEvent('safecircle:demo-reset'));
+      try {
+        localStorage.setItem('safecircle:demo-reset', Date.now().toString());
+        localStorage.removeItem('safecircle.active_incident.volunteer');
+      } catch {
+        /* ignore */
+      }
       setStage('idle');
       setPattern(null);
       setIncidentId(null);
-      say(`← reset: device ${device.id} reset to idle (basic state)`);
+      say(`← reset: device ${device.id} and all active incidents cleared to idle`);
     } catch (err) {
       say(`← reset failed: ${(err as Error).message}`, 'warn');
     }
@@ -386,6 +394,28 @@ export function Simulator(): ReactNode {
                 held {Math.round(heldMs)} ms — {PRESS.sosHoldMs} ms sends, {PRESS.cancelHoldMs} ms cancels
               </p>
             </>
+          )}
+
+          {(stage !== 'idle' || incidentId) && (
+            <div style={{ marginTop: '0.9rem', textAlign: 'center' }}>
+              <button
+                className="secondary"
+                style={{
+                  color: '#ff8a94',
+                  borderColor: '#ff4d5a',
+                  background: 'rgba(255, 77, 90, 0.15)',
+                  fontSize: '0.85rem',
+                  fontWeight: 600,
+                  padding: '0.45rem 1.1rem',
+                  borderRadius: '20px',
+                  cursor: 'pointer',
+                }}
+                onClick={() => void resetDevice()}
+                title="End the emergency incident and return simulator to idle ready state"
+              >
+                ↺ Clear / Reset Active Alarm
+              </button>
+            </div>
           )}
         </div>
 

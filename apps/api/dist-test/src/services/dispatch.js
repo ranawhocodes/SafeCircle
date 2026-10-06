@@ -1,9 +1,11 @@
 /**
  * Tiered geofenced dispatch (section 9, FR-ALT-*).
  *
- * Everyone nearby is alerted at the same moment; what differs is urgency. The 3
- * nearest verified volunteers get a full-screen alarm, everyone else a normal
- * notification, and at 30 s everyone is upgraded.
+ * Everyone nearby is alerted at the same moment; what differs is urgency.
+ * Two-priority Tier 1 selection (F16): the 3 nearest verified volunteers get
+ * a full-screen alarm; if fewer than 3 verified are available, the remaining
+ * slots are filled with the nearest unverified volunteers. Everyone else gets
+ * a normal notification. At 30 s all volunteers within 1 km are upgraded.
  */
 import { DISPATCH, buildPreAcceptView, nextRadius, planTiers, promoteAfterDecline, teamCapFor, } from '@safecircle/shared';
 import { findCandidates } from '../db/repositories/geo.js';
@@ -158,8 +160,9 @@ export async function upgradeAll(incident, person, at = new Date()) {
     return { upgraded, addedTier1 };
 }
 /**
- * Rolling top 3 (FR-ALT-3): a decline promotes the next nearest verified
- * volunteer straight away rather than waiting for the 30 s upgrade.
+ * Rolling top 3 (FR-ALT-3, F17): a decline promotes the next nearest
+ * volunteer straight away. Verified volunteers are preferred; if none are
+ * available, the nearest unverified volunteer is promoted instead.
  */
 export async function promoteAfterDeclineFor(incident, person, declinedVolunteerId, at = new Date()) {
     const location = await currentLocation(incident.id, at);

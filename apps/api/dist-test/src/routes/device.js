@@ -4,6 +4,7 @@ import { advanceSequence, findDevice, getStatusCursor, setStatusCursor, touchDev
 import { appendEvent, findIncident, findOpenIncidentForPerson } from '../db/repositories/incidents.js';
 import { findPerson } from '../db/repositories/people.js';
 import { ingest, ingestLocationUpdate, runDispatchPhase } from '../domain/engine.js';
+import { dispatchIncident } from '../services/dispatch.js';
 import { requestCancel } from '../domain/cancel.js';
 import { checkSequence, verifySignature } from '../security/hmac.js';
 import { statusFor } from '../services/deviceStatus.js';
@@ -129,6 +130,10 @@ export async function deviceRoutes(app) {
             // Not awaited: dispatch, timers, family and refinement run after the reply.
             void runDispatchPhase(outcome.incident, outcome.person, event);
         }
+        else if (outcome.person) {
+            // Repeat press on an open incident: re-run dispatch so any newly available volunteers are alerted!
+            void dispatchIncident(outcome.incident, outcome.person, event.at).catch(() => { });
+        }
         return reply.code(202).send(response);
     });
     /** The firmware's status poll (section 7.3). */
@@ -225,7 +230,10 @@ export async function deviceRoutes(app) {
         const device = await findDevice(req.params.deviceId);
         if (device?.personId) {
             await pool.query("UPDATE incidents SET state = 'resolved', closed_at = now(), outcome = 'resolved_by_drill' WHERE person_id = $1 AND closed_at IS NULL", [device.personId]);
+            await pool.query("DELETE FROM incident_timers WHERE incident_id IN (SELECT id FROM incidents WHERE person_id = $1)", [device.personId]);
+            await pool.query("UPDATE dispatches SET stood_down_at = now() WHERE stood_down_at IS NULL AND incident_id IN (SELECT id FROM incidents WHERE person_id = $1)", [device.personId]);
         }
+        await pool.query("UPDATE volunteer_zones SET cell_lat = v.home_lat, cell_lng = v.home_lng, updated_at = now() FROM volunteers v WHERE volunteer_zones.volunteer_id = v.id AND v.home_lat IS NOT NULL");
         await setStatusCursor(req.params.deviceId, 'idle', null);
         return reply.send({ ok: true, stage: 'idle' });
     });
@@ -234,7 +242,10 @@ export async function deviceRoutes(app) {
             return reply.code(404).send({ error: { code: 'not_found', message: 'Not found.' } });
         }
         await pool.query("UPDATE incidents SET state = 'resolved', closed_at = now(), outcome = 'resolved_by_drill' WHERE closed_at IS NULL");
+        await pool.query("DELETE FROM incident_timers WHERE incident_id IN (SELECT id FROM incidents WHERE closed_at IS NOT NULL)");
+        await pool.query("UPDATE dispatches SET stood_down_at = now() WHERE stood_down_at IS NULL");
         await pool.query("UPDATE device_status_cursor SET stage = 'idle', incident_id = NULL");
+        await pool.query("UPDATE volunteer_zones SET cell_lat = v.home_lat, cell_lng = v.home_lng, updated_at = now() FROM volunteers v WHERE volunteer_zones.volunteer_id = v.id AND v.home_lat IS NOT NULL");
         return reply.send({ ok: true, stage: 'idle' });
     });
 }

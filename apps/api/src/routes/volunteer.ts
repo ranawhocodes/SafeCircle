@@ -9,6 +9,7 @@ import {
   DisclosureDeniedError,
   buildFlashcardSet,
   findForbiddenKeys,
+  haversineM,
   type AvailabilityMode,
   type DeclineReason,
   type NormalisedEvent,
@@ -18,6 +19,7 @@ import {
   gradeQuiz,
 } from '@safecircle/shared';
 import { pool } from '../db/pool.js';
+import { config } from '../config.js';
 import { servableCards, findCard } from '../db/repositories/cards.js';
 import {
   findIncident,
@@ -79,6 +81,21 @@ export async function volunteerRoutes(app: FastifyInstance): Promise<void> {
       if (result === 'not_found') {
         return reply.code(404).send({ error: { code: 'not_found', message: 'Not found.' } });
       }
+
+      if (req.body.mode === 'available_now' || req.body.mode === 'available_until') {
+        const { listOpenAlertable } = await import('../domain/responder.js');
+        const { findPerson } = await import('../db/repositories/people.js');
+        const { dispatchIncident } = await import('../services/dispatch.js');
+        for (const inc of await listOpenAlertable()) {
+          if (inc.personId && !inc.flags.drill && inc.severity !== 'unverified') {
+            const p = await findPerson(inc.personId);
+            if (p) {
+              await dispatchIncident(inc, p).catch(() => {});
+            }
+          }
+        }
+      }
+
       return reply.send({ ok: true, mode: req.body.mode, until });
     },
   );
@@ -116,6 +133,25 @@ export async function volunteerRoutes(app: FastifyInstance): Promise<void> {
         distance_m: result.distanceM === null ? null : Math.round(result.distanceM),
         suggest_arrived: result.suggestArrived,
       });
+    }
+
+    // In demo / development mode, if a remote browser sends laptop GPS coordinates far from
+    // the volunteer's registered home/society (> 10 km), ignore the coarse zone update so
+    // that developer / evaluator GPS fixes do not displace demo personas away from the society!
+    const volunteer = await findVolunteer(session.subjectId);
+    if (!config.isProduction && volunteer?.homeLat != null && volunteer?.homeLng != null) {
+      const dist = haversineM(lat, lng, volunteer.homeLat, volunteer.homeLng);
+      if (dist > 10_000) {
+        req.log.warn(
+          { dist, lat, lng, homeLat: volunteer.homeLat, homeLng: volunteer.homeLng },
+          'Ignoring remote GPS fix in demo mode to protect community geofence',
+        );
+        return reply.send({
+          ok: true,
+          stored: 'ignored_remote_demo',
+          note: 'Remote GPS fix ignored in demo mode to preserve community geofence.',
+        });
+      }
     }
 
     await updateZone(session.subjectId, lat, lng);

@@ -42,6 +42,15 @@ export type TimerKind = keyof typeof TIMERS_S;
 export const DISPATCH = {
   /** How many nearest verified volunteers get the high-priority alarm. */
   tier1Size: 3,
+  /** Close-proximity radius (F16 Priority 1): only volunteers within this
+   *  distance are considered for the initial top-3 selection during the first
+   *  30 seconds. Verified are picked first, unverified backfill the rest.
+   *  Set to 750 m to cover the ~707 m maximum coarse-cell quantization
+   *  offset so volunteers in the local 1 km neighborhood cell qualify. */
+  closeProximityM: 750,
+  /** If the initial top 3 don't respond within 30 s, ALL volunteers within
+   *  this radius are alerted at Tier 1 (section 9.1, F16). */
+  escalationRadiusM: 1000,
   /** Radius steps in metres when there are too few verified volunteers nearby. */
   radiusStepsM: [1500, 3000, 5000],
   /** Alerts per volunteer per day before they are rested (section 9.2). */

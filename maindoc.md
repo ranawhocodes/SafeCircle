@@ -35,7 +35,7 @@
 | **Roadmap** (Beyond Table) | 9 | 0 | 0 | 9 |
 | **Total** | **54** | **38** | **2** | **14** |
 
-**Automated Test Suite:** **175 automated tests pass** (114 shared unit, 61 end-to-end integration) with 0 failures.
+**Automated Test Suite:** **176 automated tests pass** (115 shared unit, 61 end-to-end integration) with 0 failures.
 
 ---
 
@@ -262,12 +262,16 @@ You can test and verify all 38 features right now in your web browser.
    - At 10s (compressed from 30s): All waiting Tier 2 volunteers are automatically upgraded to Tier 1.
    - At 30s (compressed from 90s): If unaccepted, the incident escalates to 112 with badge `112 TOLD [SIMULATED]`.
 
-#### F16 — Tiered Alerts (Top 3 Verified Responders)
+#### F16 — Tiered Alerts (Top 3 with Two-Priority Selection)
 1. Trigger an SOS from Lakshmi (`HB-001`).
 2. Open `http://localhost:5173/dashboard` and view the incident dispatch table.
 3. **What to verify:**
-   - Arun Kumar and Deepa R (Verified L2) are assigned **Tier 1** (siren alarm).
-   - Any unverified volunteers are assigned **Tier 2** (silent notification).
+   - **Close-Proximity Neighborhood Boundary (`closeProximityM = 750m`):** Candidates within the immediate local neighborhood (accounting for the ~707 m maximum coarse-cell grid quantization offset) are evaluated for Tier 1 first.
+   - **Priority 1 — Verified volunteers in close proximity:** Arun Kumar and Deepa R (Verified L2) are prioritized and assigned **Tier 1** (siren alarm) first (up to 3).
+   - **Priority 2 — Unverified backfill:** If fewer than 3 verified volunteers are available within close proximity, the remaining Tier 1 slots are backfilled with the nearest unverified volunteers (Trust Level 0 or 1) so that 3 responders always receive the urgent full-screen siren alarm immediately.
+   - **Tier 2 for Balance:** All remaining eligible volunteers beyond the top 3 (both within close proximity and up to the full search radius) are assigned **Tier 2** (silent notification) at the exact same moment.
+   - **30 s Escalation to 1 km:** If none of the initial top 3 responders accept within 30 seconds, `upgradeAll()` automatically escalates **all** volunteers within a 1 km (1000 m) radius (`escalationRadiusM = 1000`) to Tier 1 alarms.
+   - **Protected Profile Safeguard (`FR-ALT-7`):** An unverified volunteer may never be the sole responder for a child, a person with a cognitive disability, or a discreet/stealth profile. If only unverified responders are nearby, the engine flags `protectedProfileAtRisk: true` to alert security guards immediately.
 
 #### F20 — Volunteer App (Alert, Accept, Status Taps)
 1. Open `http://localhost:5173/volunteer` in an incognito window.
@@ -410,8 +414,12 @@ You can test and verify all 38 features right now in your web browser.
    - Click **"4 — Mistake"**: incident transitions immediately to `cancel_verifying`.
 
 #### F17 — Rolling Top 3 Dispatch with Auto-Promotion
-1. In `http://localhost:5173/volunteer`, when Arun receives an alert, click **"Decline"** (e.g. "Too far away").
-2. **What to verify:** The system instantly evaluates the next nearest **verified** volunteer (Deepa) and upgrades them to Tier 1.
+1. In `http://localhost:5173/volunteer`, when a Tier 1 responder (e.g. Arun) receives an alert, click **"Decline"** and select a decline reason (e.g. "Too far away").
+2. **What to verify:**
+   - **Instant Promotion Without Delay:** Rather than waiting for the 30-second escalation timer, the engine (`promoteAfterDecline`) immediately evaluates the remaining candidates in Tier 2.
+   - **Priority 1 — Verified Promotion:** The system first searches for the next nearest **verified** volunteer (Trust Level $\ge 2$, e.g. Deepa) in Tier 2 and promotes them to Tier 1 instantly with a full-screen siren alarm.
+   - **Priority 2 — Unverified Fallback:** If no verified volunteer remains available in Tier 2, the system automatically promotes the nearest **unverified** volunteer (Trust Level 0 or 1) to Tier 1 instead, ensuring the incident never suffers a drop in active responder coverage.
+   - On `http://localhost:5173/dashboard`, the incident timeline immediately logs the promotion event and the new Tier 1 responder's ID.
 
 #### F18 — Responder Ranking Engine
 1. View dispatch rationale on `http://localhost:5173/dashboard`.

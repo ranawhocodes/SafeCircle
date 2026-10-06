@@ -6,8 +6,9 @@
  */
 import { buildApp } from './app.js';
 import { config } from './config.js';
-import { closePool } from './db/pool.js';
+import { closePool, one } from './db/pool.js';
 import { migrate } from './db/migrate.js';
+import { seed } from './seed/seed.js';
 import { simulatedCapabilities } from './providers/index.js';
 import { TimerRunner, flagStaleIncidents } from './scheduler/runner.js';
 import { startRetentionJobs } from './scheduler/retention.js';
@@ -15,6 +16,12 @@ import { startRetentionJobs } from './scheduler/retention.js';
 async function main(): Promise<void> {
   // Applying pending migrations on boot keeps a demo machine from drifting.
   await migrate({ quiet: true });
+
+  // If the database is completely fresh, seed demo data automatically so sign-in works out of the box.
+  const volCount = await one<{ count: number }>('SELECT count(*) as count FROM volunteers');
+  if (!volCount || Number(volCount.count) === 0) {
+    await seed({ quiet: true });
+  }
 
   const app = await buildApp();
 

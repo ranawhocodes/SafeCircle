@@ -1,7 +1,9 @@
 /** Postgres access. A single pool per process; transactions via `tx`. */
 import pg from 'pg';
 import { PGlite } from '@electric-sql/pglite';
-import { resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import fs from 'node:fs';
 import { config } from '../config.js';
 
 // Return DATE and TIMESTAMPTZ as JS Dates, and BIGINT as a number: our ids are
@@ -14,18 +16,43 @@ let pgliteInstance: PGlite | null = null;
 let pgliteInitPromise: Promise<PGlite> | null = null;
 let usePgLite = config.databaseUrl.startsWith('pglite') || config.databaseUrl.startsWith('memory');
 
+function findWorkspaceRoot(): string {
+  let dir = dirname(fileURLToPath(import.meta.url));
+  for (let i = 0; i < 6; i++) {
+    if (
+      fs.existsSync(resolve(dir, 'package.json')) &&
+      fs.existsSync(resolve(dir, 'packages')) &&
+      fs.existsSync(resolve(dir, 'apps'))
+    ) {
+      return dir;
+    }
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return process.cwd();
+}
+
 async function getPgLite(): Promise<PGlite> {
   if (pgliteInstance) return pgliteInstance;
   if (!pgliteInitPromise) {
     pgliteInitPromise = (async () => {
       let dataDir: string | undefined;
+      const rootDir = findWorkspaceRoot();
       if (config.databaseUrl.startsWith('pglite://')) {
         const raw = config.databaseUrl.replace('pglite://', '');
-        dataDir = raw === 'memory' ? undefined : resolve(raw);
+        dataDir = raw === 'memory' ? undefined : resolve(rootDir, raw);
       } else if (config.databaseUrl.startsWith('memory')) {
         dataDir = undefined;
       } else {
-        dataDir = resolve(config.isTest ? '.safecircle_pg_test' : '.safecircle_pg');
+        dataDir = resolve(rootDir, config.isTest ? '.safecircle_pg_test' : '.safecircle_pg');
+      }
+      if (dataDir && fs.existsSync(resolve(dataDir, 'postmaster.pid'))) {
+        try {
+          fs.unlinkSync(resolve(dataDir, 'postmaster.pid'));
+        } catch {
+          // ignore
+        }
       }
       const instance = new PGlite(dataDir);
       await instance.waitReady;

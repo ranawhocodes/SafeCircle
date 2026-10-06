@@ -50,6 +50,26 @@ export function clearToken(role: Role): void {
   }
 }
 
+export function getApiBaseUrl(): string {
+  if (typeof window !== 'undefined') {
+    const saved = localStorage.getItem('safecircle.api_url');
+    if (saved) return saved.replace(/\/+$/, '');
+  }
+  return ((import.meta.env.VITE_API_URL as string | undefined) || '').replace(/\/+$/, '');
+}
+
+export function setApiBaseUrl(url: string): void {
+  try {
+    if (url) {
+      localStorage.setItem('safecircle.api_url', url.trim().replace(/\/+$/, ''));
+    } else {
+      localStorage.removeItem('safecircle.api_url');
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
 async function request<T>(
   method: string,
   path: string,
@@ -62,7 +82,10 @@ async function request<T>(
     if (token) headers.authorization = `Bearer ${token}`;
   }
 
-  const res = await fetch(path, {
+  const baseUrl = getApiBaseUrl();
+  const url = path.startsWith('http') ? path : `${baseUrl}${path}`;
+
+  const res = await fetch(url, {
     method,
     headers,
     body: opts.body === undefined ? undefined : JSON.stringify(opts.body),

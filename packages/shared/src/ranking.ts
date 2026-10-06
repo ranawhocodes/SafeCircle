@@ -185,9 +185,17 @@ export function isVerified(v: VolunteerCandidate): boolean {
 /**
  * Build the tiers for one incident.
  *
- * Tier 1 is the nearest `tier1Size` VERIFIED volunteers and gets the
- * full-screen alarm. Everyone else eligible gets a normal Tier 2 alert at the
- * same moment - the difference is urgency, not timing (section 9.1).
+ * Close-proximity two-priority Tier 1 selection (F16):
+ * 1. Only volunteers within `closeProximityM` (500 m) are considered for
+ *    the initial top-3.
+ * 2. Among those, the nearest VERIFIED volunteers fill the top 3 first.
+ * 3. If fewer than `tier1Size` verified volunteers are within close
+ *    proximity, the remaining slots are filled with the nearest UNVERIFIED
+ *    volunteers within the same radius.
+ * Everyone else eligible (including those beyond 500 m) gets a normal
+ * Tier 2 alert at the same moment — the difference is urgency, not timing
+ * (section 9.1). After 30 s, all volunteers within `escalationRadiusM`
+ * (1 km) are upgraded to Tier 1.
  */
 export function planTiers(
   candidates: VolunteerCandidate[],
@@ -217,20 +225,50 @@ export function planTiers(
 
   eligible.sort((a, b) => a.score - b.score);
 
-  const verified = eligible.filter((r) => isVerified(r.volunteer));
-  const tier1 = verified.slice(0, DISPATCH.tier1Size);
+  // F16 close-proximity Tier 1 selection:
+  // Only volunteers within DISPATCH.closeProximityM (500 m) are eligible for
+  // the initial top-3. This ensures the first responders are truly nearby.
+  const closeProximity = eligible.filter(
+    (r) => r.inputs.distanceM <= DISPATCH.closeProximityM,
+  );
+  const beyond = eligible.filter(
+    (r) => r.inputs.distanceM > DISPATCH.closeProximityM,
+  );
+
+  const nearVerified = closeProximity.filter((r) => isVerified(r.volunteer));
+  const nearUnverified = closeProximity.filter((r) => !isVerified(r.volunteer));
+
+  // Two-priority Tier 1 selection (F16):
+  // 1. First, pick the nearest verified volunteers within close proximity
+  //    (up to tier1Size).
+  // 2. If verified volunteers don't fill tier1Size, fill the remaining
+  //    slots with the nearest unverified volunteers within close proximity
+  //    so that the top 3 responders are always dispatched with the full-screen alarm.
+  const tier1: RankedVolunteer[] = nearVerified.slice(0, DISPATCH.tier1Size);
+  const remainingSlots = DISPATCH.tier1Size - tier1.length;
+  if (remainingSlots > 0) {
+    tier1.push(...nearUnverified.slice(0, remainingSlots));
+  }
+
   const tier1Ids = new Set(tier1.map((r) => r.volunteer.id));
-  const tier2 = eligible.filter((r) => !tier1Ids.has(r.volunteer.id));
+  // Everyone beyond close proximity plus close-proximity volunteers not in Tier 1
+  const tier2 = [
+    ...closeProximity.filter((r) => !tier1Ids.has(r.volunteer.id)),
+    ...beyond,
+  ];
+  // Sparse is set when the overall search area lacks 3 verified volunteers,
+  // triggering the widening loop in dispatch.ts.
+  const allVerified = eligible.filter((r) => isVerified(r.volunteer));
 
   return {
     tier1,
     tier2,
     excluded,
-    sparse: verified.length < DISPATCH.tier1Size,
+    sparse: allVerified.length < DISPATCH.tier1Size,
     radiusM,
     // FR-ALT-7: an unverified volunteer may never be the sole responder for a
     // child, a person with a cognitive disability or a discreet case.
-    protectedProfileAtRisk: person.protected && verified.length === 0,
+    protectedProfileAtRisk: person.protected && allVerified.length === 0,
   };
 }
 
@@ -247,17 +285,26 @@ export function nextRadius(currentM: number): number | null {
 
 /**
  * Rolling top 3 (FR-ALT-3): when a Tier 1 volunteer declines, the next nearest
- * verified volunteer is promoted immediately rather than at the 30 s upgrade.
+ * volunteer is promoted immediately rather than waiting for the 30 s upgrade.
+ *
+ * Two-priority promotion (F17, aligned with F16):
+ * 1. Prefer the nearest verified volunteer from Tier 2.
+ * 2. If no verified volunteer is available, promote the nearest unverified
+ *    volunteer so that the incident always maintains its responder count.
  */
 export function promoteAfterDecline(
   plan: TierPlan,
   declinedVolunteerId: string,
 ): { promoted: RankedVolunteer | null; tier1: RankedVolunteer[] } {
   const tier1 = plan.tier1.filter((r) => r.volunteer.id !== declinedVolunteerId);
+  const available = plan.tier2.filter(
+    (r) => !tier1.some((t) => t.volunteer.id === r.volunteer.id),
+  );
+  // First try a verified volunteer; if none, fall back to any available.
   const promoted =
-    plan.tier2.find(
-      (r) => isVerified(r.volunteer) && !tier1.some((t) => t.volunteer.id === r.volunteer.id),
-    ) ?? null;
+    available.find((r) => isVerified(r.volunteer))
+    ?? available[0]
+    ?? null;
   if (promoted) tier1.push(promoted);
   return { promoted, tier1 };
 }
